@@ -2,44 +2,24 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  DndContext, type DragEndEvent, type DragStartEvent, DragOverlay,
-  PointerSensor, useSensor, useSensors, useDraggable, useDroppable,
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
-import { Lock, Unlock, X, Printer, Wand2, Search } from "lucide-react";
+import { Printer, Wand2, Search, LayoutGrid, Rows3, AlertTriangle } from "lucide-react";
 import Link from "next/link";
+import { DraggableServer } from "./components/Draggables";
+import { ShiftCard } from "./components/ShiftCard";
+import { RosterGrid } from "./components/RosterGrid";
+import { DOW, dayKey, type BoardData, type Shift } from "./types";
 
-type Server = {
-  id: string; firstName: string; lastName: string; classification: string;
-  preferredLocations: string[]; preferredShifts: string[];
-  seniority?: { seniorityRank: number | null; seniorityScore: number; yearsOfService: number };
-  qualifications: { qualification: { code: string; name: string } }[];
-};
-type Assignment = {
-  id: string; serverId: string; roleCode: string | null;
-  locked: boolean; acknowledged: boolean; reason: string | null;
-  server: Server;
-};
-type Requirement = { id: string; count: number; role: { id: string; code: string; name: string; color: string | null } };
-type Shift = {
-  id: string; date: string; startsAt: string; endsAt: string;
-  locationCode: string | null; roomCode: string | null;
-  label: string | null; statusCode: string;
-  requirements: Requirement[]; assignments: Assignment[];
-  event: { id: string; name: string } | null;
-};
-type Schedule = { id: string; name: string; weekStart: string; weekEnd: string; status: string; revisionDate: string | null };
+type View = "day" | "roster";
 
-const DOW = ["SUN","MON","TUE","WED","THU","FRI","SAT"] as const;
-
-function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-}
-function dayKey(iso: string) {
-  const d = new Date(iso);
-  return DOW[d.getDay()];
-}
-
-export default function ScheduleBoard({ data }: { data: { schedule: Schedule; shifts: Shift[]; servers: Server[] } }) {
+export default function ScheduleBoard({ data }: { data: BoardData }) {
   const router = useRouter();
   const [shifts, setShifts] = useState<Shift[]>(data.shifts);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -47,6 +27,8 @@ export default function ScheduleBoard({ data }: { data: { schedule: Schedule; sh
   const [filterRole, setFilterRole] = useState<string>("");
   const [filterLoc, setFilterLoc] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [view, setView] = useState<View>("day");
+  const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -62,14 +44,35 @@ export default function ScheduleBoard({ data }: { data: { schedule: Schedule; sh
     return Array.from(set).sort();
   }, [shifts]);
 
-  // Group shifts by day
   const byDay = useMemo(() => {
-    const m: Record<string, Shift[]> = { SUN:[], MON:[], TUE:[], WED:[], THU:[], FRI:[], SAT:[] };
+    const m: Record<string, Shift[]> = { SUN: [], MON: [], TUE: [], WED: [], THU: [], FRI: [], SAT: [] };
     for (const s of shifts) m[dayKey(s.date)]?.push(s);
     return m;
   }, [shifts]);
 
-  // Filtered sidebar servers
+  // Detect overlap conflicts: same server, overlapping time windows.
+  const conflictIds = useMemo(() => {
+    const map = new Map<string, { start: number; end: number; id: string }[]>();
+    const set = new Set<string>();
+    for (const sh of shifts) {
+      if (sh.statusCode !== "NONE") continue;
+      const start = new Date(sh.startsAt).getTime();
+      const end = new Date(sh.endsAt).getTime();
+      for (const a of sh.assignments) {
+        const arr = map.get(a.serverId) ?? [];
+        for (const other of arr) {
+          if (start < other.end && end > other.start) {
+            set.add(a.id);
+            set.add(other.id);
+          }
+        }
+        arr.push({ start, end, id: a.id });
+        map.set(a.serverId, arr);
+      }
+    }
+    return set;
+  }, [shifts]);
+
   const filteredServers = useMemo(() => {
     const q = filterQuery.toLowerCase();
     return data.servers.filter((s) => {
@@ -79,14 +82,16 @@ export default function ScheduleBoard({ data }: { data: { schedule: Schedule; sh
       }
       if (filterLoc && !s.preferredLocations.includes(filterLoc)) return false;
       if (filterRole) {
-        // Approximate match by classification
-        const classMatch = (s.classification ?? "").includes(filterRole.toUpperCase()) ||
-          (filterRole === "CAP" && s.classification.includes("CAPTAIN")) ||
-          (filterRole === "BAR" && s.classification === "BARTENDER") ||
-          (filterRole === "SVR" && s.classification === "BANQUET_SERVER") ||
-          (filterRole === "AV" && s.classification === "AV_TECH") ||
-          (filterRole === "HSP" && s.classification === "HOUSEPERSON");
-        if (!classMatch) return false;
+        const cls = s.classification ?? "";
+        const ok =
+          (filterRole === "CAP" && cls.includes("CAPTAIN")) ||
+          (filterRole === "BAR" && cls === "BARTENDER") ||
+          (filterRole === "SVR" && cls === "BANQUET_SERVER") ||
+          (filterRole === "AV" && cls === "AV_TECH") ||
+          (filterRole === "HSP" && cls === "HOUSEPERSON") ||
+          (filterRole === "SUP" && cls.includes("SUPERVISOR")) ||
+          cls.includes(filterRole.toUpperCase());
+        if (!ok) return false;
       }
       return true;
     });
@@ -112,7 +117,7 @@ export default function ScheduleBoard({ data }: { data: { schedule: Schedule; sh
     return res.ok;
   }
 
-  async function toggleLock(assignmentId: string, locked: boolean) {
+  async function toggleLockReq(assignmentId: string, locked: boolean) {
     await fetch("/api/schedule/assign", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -120,7 +125,9 @@ export default function ScheduleBoard({ data }: { data: { schedule: Schedule; sh
     });
   }
 
-  function onDragStart(e: DragStartEvent) { setActiveId(String(e.active.id)); }
+  function onDragStart(e: DragStartEvent) {
+    setActiveId(String(e.active.id));
+  }
 
   async function onDragEnd(e: DragEndEvent) {
     setActiveId(null);
@@ -128,27 +135,17 @@ export default function ScheduleBoard({ data }: { data: { schedule: Schedule; sh
     if (!over) return;
     const dragId = String(active.id);
     const overId = String(over.id);
-
-    // Drop target id formats:
-    //   shift:<shiftId>:<roleCode>
     if (!overId.startsWith("shift:")) return;
     const [, shiftId, roleCode] = overId.split(":");
 
-    // Active id formats: server:<serverId>  OR  assignment:<assignmentId>
     if (dragId.startsWith("server:")) {
       const serverId = dragId.replace("server:", "");
-      // Optimistic
       const result = await persistAssign(shiftId, serverId, roleCode);
       if (result) {
-        setShifts((prev) =>
-          prev.map((s) =>
-            s.id === shiftId ? { ...s, assignments: [...s.assignments, result] } : s
-          )
-        );
+        setShifts((prev) => prev.map((s) => (s.id === shiftId ? { ...s, assignments: [...s.assignments, result] } : s)));
       }
     } else if (dragId.startsWith("assignment:")) {
       const assignmentId = dragId.replace("assignment:", "");
-      // Find source shift + server
       const fromShift = shifts.find((s) => s.assignments.some((a) => a.id === assignmentId));
       const a = fromShift?.assignments.find((x) => x.id === assignmentId);
       if (!a || !fromShift) return;
@@ -161,7 +158,7 @@ export default function ScheduleBoard({ data }: { data: { schedule: Schedule; sh
             if (s.id === fromShift.id) return { ...s, assignments: s.assignments.filter((x) => x.id !== assignmentId) };
             if (s.id === shiftId) return { ...s, assignments: [...s.assignments, result] };
             return s;
-          })
+          }),
         );
       }
     }
@@ -178,89 +175,188 @@ export default function ScheduleBoard({ data }: { data: { schedule: Schedule; sh
     router.refresh();
   }
 
+  const onRemove = async (aid: string) => {
+    if (await persistRemove(aid)) {
+      setShifts((prev) => prev.map((x) => ({ ...x, assignments: x.assignments.filter((a) => a.id !== aid) })));
+    }
+  };
+  const onToggleLock = async (aid: string, locked: boolean) => {
+    await toggleLockReq(aid, locked);
+    setShifts((prev) =>
+      prev.map((x) => ({ ...x, assignments: x.assignments.map((a) => (a.id === aid ? { ...a, locked } : a)) })),
+    );
+  };
+
   const activeServer = activeId?.startsWith("server:")
     ? data.servers.find((s) => s.id === activeId.replace("server:", ""))
     : null;
 
+  const totalReq = shifts.reduce((s, sh) => s + sh.requirements.reduce((x, r) => x + r.count, 0), 0);
+  const totalAssigned = shifts.reduce((s, sh) => s + sh.assignments.length, 0);
+  const totalOpen = Math.max(0, totalReq - totalAssigned);
+
   return (
     <div className="space-y-4">
-      <div className="flex items-end justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-4xl">{data.schedule.name}</h1>
-          <p className="text-ink-muted text-sm">
-            Drag servers from the sidebar onto unfilled role slots. Lock assignments to protect them from auto-scheduling.
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-3xl md:text-4xl font-display tracking-tight truncate">{data.schedule.name}</h1>
+          <p className="text-ink-muted text-sm mt-1">
+            Drag servers onto unfilled role slots. Lock to protect from auto-fill.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatBadge label="Open" value={totalOpen} tone={totalOpen > 0 ? "danger" : "ok"} />
+          <StatBadge label="Assigned" value={totalAssigned} />
+          <StatBadge label="Required" value={totalReq} />
+          {conflictIds.size > 0 && (
+            <StatBadge label="Conflicts" value={conflictIds.size} tone="danger" icon={<AlertTriangle className="h-3.5 w-3.5" />} />
+          )}
+          <div className="h-6 w-px bg-ink/10" />
           <button className="btn-outline" onClick={rerunUnlocked} disabled={busy}>
-            <Wand2 className="h-4 w-4" />{busy ? "Running…" : "Fill Unassigned"}
+            <Wand2 className="h-4 w-4" />
+            {busy ? "Running…" : "Fill Unassigned"}
           </button>
           <Link href={`/schedule/print?id=${data.schedule.id}`} className="btn-primary">
-            <Printer className="h-4 w-4" />Print View
+            <Printer className="h-4 w-4" />
+            Print
           </Link>
         </div>
       </div>
 
+      <div className="card !p-2 flex flex-wrap items-center gap-2 justify-between">
+        <div className="inline-flex rounded-lg border border-ink/10 overflow-hidden bg-canvas-soft/60">
+          <button
+            onClick={() => setView("day")}
+            className={`px-3 py-1.5 text-sm inline-flex items-center gap-1.5 ${view === "day" ? "bg-white text-cardinal font-semibold" : "text-ink-muted hover:bg-white/60"}`}
+          >
+            <LayoutGrid className="h-4 w-4" /> Day grid
+          </button>
+          <button
+            onClick={() => setView("roster")}
+            className={`px-3 py-1.5 text-sm inline-flex items-center gap-1.5 ${view === "roster" ? "bg-white text-cardinal font-semibold" : "text-ink-muted hover:bg-white/60"}`}
+          >
+            <Rows3 className="h-4 w-4" /> Roster grid
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-ink-muted">Density</label>
+          <div className="inline-flex rounded-lg border border-ink/10 overflow-hidden">
+            <button
+              onClick={() => setDensity("comfortable")}
+              className={`px-2.5 py-1 text-xs ${density === "comfortable" ? "bg-cardinal text-white" : "bg-white hover:bg-canvas-soft"}`}
+            >
+              Comfortable
+            </button>
+            <button
+              onClick={() => setDensity("compact")}
+              className={`px-2.5 py-1 text-xs ${density === "compact" ? "bg-cardinal text-white" : "bg-white hover:bg-canvas-soft"}`}
+            >
+              Compact
+            </button>
+          </div>
+        </div>
+      </div>
+
       <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-[280px_1fr] gap-4">
-          {/* Sidebar */}
-          <aside className="card p-4 sticky top-20 self-start max-h-[80vh] overflow-y-auto">
-            <h2 className="font-display text-lg mb-3">Available Servers</h2>
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)]">
+          <aside className="card !p-3 lg:sticky lg:top-20 self-start lg:max-h-[calc(100vh-100px)] overflow-hidden flex flex-col">
+            <h2 className="font-display text-base mb-2 flex items-center justify-between">
+              <span>Available Servers</span>
+              <span className="text-[11px] font-mono text-ink-muted">{filteredServers.length}</span>
+            </h2>
             <div className="space-y-2 mb-3">
-              <div className="flex items-center gap-2 bg-canvas-soft rounded-lg px-2 py-1">
-                <Search className="h-3 w-3 text-ink-muted" />
-                <input value={filterQuery} onChange={(e) => setFilterQuery(e.target.value)} placeholder="Search by name…" className="bg-transparent outline-none text-sm flex-1" />
+              <div className="flex items-center gap-2 bg-canvas-soft rounded-lg px-2 py-1.5">
+                <Search className="h-3.5 w-3.5 text-ink-muted shrink-0" />
+                <input
+                  value={filterQuery}
+                  onChange={(e) => setFilterQuery(e.target.value)}
+                  placeholder="Search by name…"
+                  className="bg-transparent outline-none text-sm flex-1 min-w-0"
+                />
               </div>
-              <select className="input" value={filterRole} onChange={(e) => setFilterRole(e.target.value)}>
-                <option value="">All roles</option>
-                {allRoles.map((r) => <option key={r} value={r}>{r}</option>)}
-              </select>
-              <select className="input" value={filterLoc} onChange={(e) => setFilterLoc(e.target.value)}>
-                <option value="">All locations</option>
-                {allLocations.map((l) => <option key={l} value={l}>{l}</option>)}
-              </select>
+              <div className="grid grid-cols-2 gap-1.5">
+                <select className="input !py-1 !text-xs" value={filterRole} onChange={(e) => setFilterRole(e.target.value)}>
+                  <option value="">All roles</option>
+                  {allRoles.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+                <select className="input !py-1 !text-xs" value={filterLoc} onChange={(e) => setFilterLoc(e.target.value)}>
+                  <option value="">All locs</option>
+                  {allLocations.map((l) => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div className="space-y-1">
-              {filteredServers.map((s) => (
-                <DraggableServer key={s.id} server={s} />
-              ))}
+            <div className="space-y-1.5 overflow-y-auto pr-1 -mr-1 flex-1">
+              {filteredServers.length === 0 ? (
+                <div className="text-xs text-ink-muted text-center py-6">No servers match.</div>
+              ) : (
+                filteredServers.map((s) => <DraggableServer key={s.id} server={s} compact={density === "compact"} />)
+              )}
             </div>
           </aside>
 
-          {/* Day grid */}
-          <div className="grid grid-cols-7 gap-3 min-w-[1000px]">
-            {DOW.map((d) => (
-              <div key={d} className="card p-3 min-h-[200px]">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="font-display text-sm uppercase tracking-wider">{d}</div>
-                  <div className="text-xs text-ink-muted">{byDay[d]?.length ?? 0} shift{(byDay[d]?.length ?? 0) === 1 ? "" : "s"}</div>
-                </div>
-                <div className="space-y-2">
-                  {(byDay[d] ?? []).map((sh) => (
-                    <ShiftCard
-                      key={sh.id}
-                      shift={sh}
-                      onRemove={async (aid) => {
-                        if (await persistRemove(aid)) {
-                          setShifts((prev) => prev.map((x) => x.id === sh.id ? { ...x, assignments: x.assignments.filter((a) => a.id !== aid) } : x));
-                        }
-                      }}
-                      onToggleLock={async (aid, locked) => {
-                        await toggleLock(aid, locked);
-                        setShifts((prev) => prev.map((x) => x.id === sh.id ? { ...x, assignments: x.assignments.map((a) => a.id === aid ? { ...a, locked } : a) } : x));
-                      }}
-                    />
-                  ))}
+          <div className="min-w-0">
+            {view === "day" ? (
+              <div className="overflow-x-auto pb-2">
+                <div className="grid grid-cols-7 gap-3 min-w-[1100px]">
+                  {DOW.map((d, i) => {
+                    const date = new Date(data.schedule.weekStart);
+                    date.setDate(date.getDate() + i);
+                    return (
+                      <div key={d} className="card !p-2.5 min-h-[220px] flex flex-col">
+                        <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-ink/10">
+                          <div>
+                            <div className="font-display text-xs uppercase tracking-wider">{d}</div>
+                            <div className="text-[10px] text-ink-muted font-mono">
+                              {date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                            </div>
+                          </div>
+                          <div className="text-[10px] text-ink-muted">
+                            {byDay[d]?.length ?? 0} shift{(byDay[d]?.length ?? 0) === 1 ? "" : "s"}
+                          </div>
+                        </div>
+                        <div className="space-y-2 flex-1">
+                          {(byDay[d] ?? []).length === 0 ? (
+                            <div className="text-[11px] text-ink-muted text-center py-6 italic">No shifts</div>
+                          ) : (
+                            (byDay[d] ?? []).map((sh) => (
+                              <ShiftCard
+                                key={sh.id}
+                                shift={sh}
+                                onRemove={onRemove}
+                                onToggleLock={onToggleLock}
+                                conflictIds={conflictIds}
+                              />
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            ))}
+            ) : (
+              <RosterGrid
+                schedule={data.schedule}
+                shifts={shifts}
+                servers={data.servers}
+                onRemove={onRemove}
+                onToggleLock={onToggleLock}
+                conflictIds={conflictIds}
+                density={density}
+              />
+            )}
           </div>
         </div>
 
         <DragOverlay>
           {activeServer && (
-            <div className="bg-cardinal text-white rounded-lg px-3 py-1.5 text-sm shadow-card">
-              {activeServer.lastName}, {activeServer.firstName}
+            <div className="bg-cardinal text-white rounded-lg px-3 py-2 text-sm shadow-lg ring-2 ring-cardinal/30">
+              <div className="font-medium leading-tight">{activeServer.lastName}, {activeServer.firstName}</div>
+              <div className="text-[10px] opacity-80">#{activeServer.seniority?.seniorityRank ?? "—"}</div>
             </div>
           )}
         </DragOverlay>
@@ -269,128 +365,20 @@ export default function ScheduleBoard({ data }: { data: { schedule: Schedule; sh
   );
 }
 
-function DraggableServer({ server }: { server: Server }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `server:${server.id}` });
-  return (
-    <div
-      ref={setNodeRef} {...attributes} {...listeners}
-      className={`rounded-lg border border-ink/10 px-2.5 py-2 bg-white hover:bg-cardinal/5 cursor-grab active:cursor-grabbing text-sm ${isDragging ? "opacity-40" : ""}`}
-    >
-      <div className="font-medium">{server.lastName}, {server.firstName}</div>
-      <div className="flex items-center justify-between text-[10px] text-ink-muted">
-        <span>#{server.seniority?.seniorityRank ?? "—"} · {server.seniority?.yearsOfService.toFixed(1) ?? "0"}y</span>
-        <span className="font-mono">{server.classification.split("_")[0]}</span>
-      </div>
-    </div>
-  );
-}
-
-function ShiftCard({ shift, onRemove, onToggleLock }: {
-  shift: Shift;
-  onRemove: (assignmentId: string) => void;
-  onToggleLock: (assignmentId: string, locked: boolean) => void;
-}) {
-  const statusColors: Record<string, string> = {
-    OFF: "bg-gray-200 text-gray-700",
-    VAC: "bg-amber-100 text-amber-900 border border-amber-200",
-    MLA: "bg-sky-100 text-sky-900 border border-sky-200",
-    SICK: "bg-red-100 text-red-900 border border-red-200",
-    HOLIDAY: "bg-violet-100 text-violet-900 border border-violet-200",
-    TRAINING: "bg-emerald-100 text-emerald-900 border border-emerald-200",
-  };
-  if (shift.statusCode !== "NONE") {
-    return (
-      <div className={`rounded-lg p-2 text-xs ${statusColors[shift.statusCode] ?? "bg-canvas-soft"}`}>
-        <div className="font-semibold">{shift.statusCode}</div>
-        {shift.assignments.map((a) => (
-          <div key={a.id} className="text-[11px]">{a.server.lastName}, {a.server.firstName}</div>
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-lg border border-ink/10 bg-white p-2 schedule-cell">
-      <div className="flex items-center justify-between text-[11px] text-ink-muted">
-        <span className="font-mono">{fmtTime(shift.startsAt)}–{fmtTime(shift.endsAt)}</span>
-        <span>{shift.locationCode ?? ""}{shift.roomCode ? `/${shift.roomCode}` : ""}</span>
-      </div>
-      <div className="text-xs font-medium mt-0.5 line-clamp-2">{shift.label ?? "Shift"}</div>
-
-      <div className="mt-2 space-y-1.5">
-        {shift.requirements.map((req) => {
-          const filled = shift.assignments.filter((a) => a.roleCode === req.role.code);
-          const open = req.count - filled.length;
-          return (
-            <RoleSlot
-              key={req.id}
-              shiftId={shift.id}
-              role={req.role}
-              count={req.count}
-              assigned={filled}
-              open={open}
-              onRemove={onRemove}
-              onToggleLock={onToggleLock}
-            />
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function RoleSlot({
-  shiftId, role, count, assigned, open, onRemove, onToggleLock,
+function StatBadge({
+  label, value, tone, icon,
 }: {
-  shiftId: string;
-  role: { id: string; code: string; name: string; color: string | null };
-  count: number;
-  assigned: Assignment[];
-  open: number;
-  onRemove: (id: string) => void;
-  onToggleLock: (id: string, locked: boolean) => void;
+  label: string;
+  value: number;
+  tone?: "ok" | "danger";
+  icon?: React.ReactNode;
 }) {
-  const { isOver, setNodeRef } = useDroppable({ id: `shift:${shiftId}:${role.code}` });
+  const cls = tone === "danger" ? "bg-red-50 text-red-800 border-red-200" : "bg-canvas-soft text-ink border-ink/10";
   return (
-    <div
-      ref={setNodeRef}
-      className={`rounded-md border ${isOver ? "border-cardinal bg-cardinal/5" : open > 0 ? "border-dashed border-red-300 bg-red-50/30" : "border-ink/10 bg-canvas-soft/50"} p-1.5`}
-    >
-      <div className="flex items-center justify-between text-[10px] uppercase tracking-wider">
-        <span className="font-semibold" style={{ color: role.color ?? undefined }}>{role.code}</span>
-        <span className={`font-mono ${open > 0 ? "text-red-700" : "text-emerald-700"}`}>
-          {assigned.length}/{count}
-        </span>
-      </div>
-      <div className="mt-1 space-y-1">
-        {assigned.map((a) => (
-          <DraggableAssignment key={a.id} a={a} onRemove={onRemove} onToggleLock={onToggleLock} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function DraggableAssignment({ a, onRemove, onToggleLock }: {
-  a: Assignment; onRemove: (id: string) => void; onToggleLock: (id: string, locked: boolean) => void;
-}) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `assignment:${a.id}` });
-  return (
-    <div
-      ref={setNodeRef}
-      className={`group flex items-center justify-between gap-1 rounded-md px-1.5 py-1 text-[11px] cursor-grab
-        ${a.locked ? "bg-cardinal text-white" : "bg-white border border-ink/10"} ${isDragging ? "opacity-40" : ""}`}
-      title={a.reason ?? ""}
-    >
-      <span {...attributes} {...listeners} className="truncate font-medium">
-        {a.server.lastName}, {a.server.firstName[0]}.
-      </span>
-      <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
-        <button onClick={() => onToggleLock(a.id, !a.locked)} title={a.locked ? "Unlock" : "Lock"}>
-          {a.locked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
-        </button>
-        <button onClick={() => onRemove(a.id)} title="Remove"><X className="h-3 w-3" /></button>
-      </span>
+    <div className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium ${cls}`}>
+      {icon}
+      <span className="text-ink-muted">{label}</span>
+      <span className="font-mono font-semibold">{value}</span>
     </div>
   );
 }
