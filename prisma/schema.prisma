@@ -535,3 +535,59 @@ model MasterDataVersion {
   note        String?
   createdAt   DateTime @default(now())
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// ML-ready: historical assignments archive (v0.3)
+// ────────────────────────────────────────────────────────────────────────────
+// Snapshot of completed shift assignments, with engine decision metadata and
+// post-hoc outcome signals (no-show, swap, late, etc.). Powers future ML
+// scoring plugins — see src/lib/scheduling/plugins.ts.
+
+model HistoricalAssignment {
+  id            String   @id @default(cuid())
+  shiftId       String
+  serverId      String
+  roleCode      String
+  scheduleId    String
+  weekStart     DateTime
+  date          DateTime
+  startsAt      DateTime
+  endsAt        DateTime
+  locationCode  String?
+  // Engine-side context captured at decision time
+  reason        String?  // human-readable explanation
+  scoreVector   Json?    // {seniority, fairness, qualMatch, prefMatch, ...}
+  engineVersion String?  // e.g., "v0.3-rules"
+  // Outcome signals filled in post-hoc
+  outcome       String?  // "WORKED", "NO_SHOW", "SWAPPED", "CANCELLED"
+  outcomeNotes  String?
+  createdAt     DateTime @default(now())
+
+  @@index([serverId, date])
+  @@index([weekStart])
+  @@index([roleCode])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Import staging: raw inbound rows + validation results (v0.3)
+// ────────────────────────────────────────────────────────────────────────────
+// Generic pre-flight buffer for any import adapter (roster CSV, historical
+// schedule, BEO PDF, etc.). The adapter writes raw rows here, runs validation,
+// then promotes successful rows into the main tables. See
+// src/lib/import/index.ts for the adapter registry.
+
+model ImportStage {
+  id           String   @id @default(cuid())
+  source       String   // "roster-csv" | "beo-csv" | "beo-pdf" | "schedule-history" | ...
+  batchId      String   // user-supplied or generated; groups rows from one upload
+  rawPayload   Json     // original row as parsed from the source
+  status       String   @default("PENDING") // PENDING | VALID | INVALID | IMPORTED
+  errors       Json?    // list of validation messages
+  importedAt   DateTime?
+  importedAs   String?  // entity/id of the resulting record after promotion
+  createdBy    String?
+  createdAt    DateTime @default(now())
+
+  @@index([source, batchId])
+  @@index([status])
+}

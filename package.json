@@ -1,6 +1,6 @@
 {
   "name": "tng-scheduling-system",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "description": "USC Private Events & Conferences — Banquet Operations Platform (scheduling, BEO management, venue operations)",
   "scripts": {
