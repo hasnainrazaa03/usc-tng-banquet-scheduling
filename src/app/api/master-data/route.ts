@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   if (dryRun) {
     const result = await importMasterData(payload, { dryRun: true });
-    return NextResponse.json({ dryRun: true, ...result });
+    return NextResponse.json({ ...result, dryRun: true });
   }
 
   const last = await prisma.masterDataVersion.findFirst({ orderBy: { versionNum: "desc" } });

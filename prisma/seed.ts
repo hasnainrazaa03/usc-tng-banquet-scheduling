@@ -21,15 +21,20 @@ function atTime(d: Date, hhmm: string) {
   return x;
 }
 function sundayOf(d: Date) {
+  // Renamed conceptually but kept for backward compatibility with the rest
+  // of this file. Returns the start of the *operational* week (Thursday)
+  // for USC Private Events & Conferences.
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
-  x.setDate(x.getDate() - x.getDay());
+  const THU = 4;
+  const diff = (x.getDay() - THU + 7) % 7;
+  x.setDate(x.getDate() - diff);
   return x;
 }
 
 async function main() {
-  console.log("→ Seeding USC TNG Banquet system…");
-venue groups, locations, rooms, event spaces, roles,
+  console.log("→ Seeding USC Private Events & Conferences banquet ops…");
+  // 1. Import master data: venue groups, locations, rooms, event spaces, roles,
   //    qualifications (via the typed importer so old + new shapes both work).
   const master = JSON.parse(fs.readFileSync(MASTER_DATA_PATH, "utf-8"));
   await prisma.masterDataVersion.create({
@@ -46,8 +51,7 @@ venue groups, locations, rooms, event spaces, roles,
     `${importResult.counts.locations} locations, ` +
     `${importResult.counts.rooms} rooms, ` +
     `${importResult.counts.eventSpaces} event spaces.`,
-  ); });
-  }
+  );
 
   // Qualifications
   for (const q of master.qualifications) {

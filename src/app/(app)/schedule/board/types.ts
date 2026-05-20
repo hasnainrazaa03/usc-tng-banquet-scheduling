@@ -50,18 +50,46 @@ export type Schedule = {
   revisionDate: string | null;
 };
 
-export type BoardData = { schedule: Schedule; shifts: Shift[]; servers: Server[] };
+export type BoardData = {
+  schedule: Schedule;
+  shifts: Shift[];
+  servers: Server[];
+  siblingSchedules?: SiblingSchedule[];
+};
 
-export const DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
-export type DayOfWeek = (typeof DOW)[number];
+export type SiblingSchedule = {
+  id: string;
+  name: string;
+  weekStart: string;
+  weekEnd: string;
+  status: string;
+};
+
+// Re-export the operational week constants so existing imports keep working
+// without each component needing to reach into `@/lib/week-config`.
+import {
+  DOW_OPERATIONAL,
+  DOW_NATIVE,
+  DOW_LONG,
+  dowCode,
+  type DowCode,
+} from "@/lib/week-config";
+
+/**
+ * @deprecated Use `DOW_OPERATIONAL` from `@/lib/week-config` instead.
+ * Kept as a name alias so existing callers continue to compile; this now
+ * iterates Thursday-first to match the operational week.
+ */
+export const DOW = DOW_OPERATIONAL;
+export type DayOfWeek = DowCode;
+export { DOW_OPERATIONAL, DOW_NATIVE, DOW_LONG };
 
 export function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
 export function dayKey(iso: string): DayOfWeek {
-  const d = new Date(iso);
-  return DOW[d.getDay()];
+  return dowCode(iso);
 }
 
 /** Color tokens for roles & statuses. Co-located so the board + print share. */

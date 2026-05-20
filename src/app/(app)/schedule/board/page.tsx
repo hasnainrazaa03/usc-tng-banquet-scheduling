@@ -1,12 +1,42 @@
 import { prisma } from "@/lib/db";
 import ScheduleBoard from "./board";
+import { startOfOperationalWeek, endOfOperationalWeek } from "@/lib/week-config";
 
 export const dynamic = "force-dynamic";
 
-export default async function ScheduleBoardPage({ searchParams }: { searchParams: { id?: string } }) {
-  const schedule = searchParams.id
-    ? await prisma.schedule.findUnique({ where: { id: searchParams.id } })
-    : await prisma.schedule.findFirst({ orderBy: { weekStart: "desc" } });
+export default async function ScheduleBoardPage({
+  searchParams,
+}: {
+  searchParams: { id?: string; week?: string };
+}) {
+  // Three ways to resolve the active schedule:
+  //   1. ?id=<scheduleId>  → load that schedule directly
+  //   2. ?week=YYYY-MM-DD  → load the schedule whose week contains that date
+  //   3. neither           → most recent schedule
+  let schedule = null as Awaited<ReturnType<typeof prisma.schedule.findFirst>>;
+  if (searchParams.id) {
+    schedule = await prisma.schedule.findUnique({ where: { id: searchParams.id } });
+  } else if (searchParams.week) {
+    const target = new Date(searchParams.week);
+    if (!isNaN(target.getTime())) {
+      const ws = startOfOperationalWeek(target);
+      const we = endOfOperationalWeek(target);
+      schedule = await prisma.schedule.findFirst({
+        where: { weekStart: { gte: ws, lte: we } },
+        orderBy: { weekStart: "desc" },
+      });
+    }
+  }
+  if (!schedule) {
+    schedule = await prisma.schedule.findFirst({ orderBy: { weekStart: "desc" } });
+  }
+
+  // Sibling schedules for the week-picker dropdown — all known weeks, newest first.
+  const siblingSchedules = await prisma.schedule.findMany({
+    orderBy: { weekStart: "desc" },
+    select: { id: true, name: true, weekStart: true, weekEnd: true, status: true },
+    take: 52,
+  });
 
   if (!schedule) {
     return (
@@ -34,7 +64,7 @@ export default async function ScheduleBoardPage({ searchParams }: { searchParams
     }),
   ]);
 
-  // Serialize Date instances for client
-  const serialized = JSON.parse(JSON.stringify({ schedule, shifts, servers }));
+  // Serialize Date instances for the client island.
+  const serialized = JSON.parse(JSON.stringify({ schedule, shifts, servers, siblingSchedules }));
   return <ScheduleBoard data={serialized} />;
 }

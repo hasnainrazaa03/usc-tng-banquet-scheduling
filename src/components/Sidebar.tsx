@@ -12,7 +12,7 @@ const NAV: { href: string; label: string; icon: any; roles: UserRole[] }[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["ADMIN","MANAGER","SUPERVISOR","EMPLOYEE"] },
   { href: "/beos", label: "BEOs", icon: ClipboardList, roles: ["ADMIN","MANAGER","SUPERVISOR"] },
   { href: "/beos/import", label: "BEO Import", icon: Upload, roles: ["ADMIN","MANAGER"] },
-  { href: "/locations", label: "Locations & Rooms", icon: MapPin, roles: ["ADMIN","MANAGER"] },
+  { href: "/locations", label: "Venues", icon: MapPin, roles: ["ADMIN","MANAGER"] },
   { href: "/servers", label: "Server Database", icon: Users, roles: ["ADMIN","MANAGER","SUPERVISOR"] },
   { href: "/seniority", label: "Seniority", icon: Award, roles: ["ADMIN","MANAGER"] },
   { href: "/availability", label: "Availability", icon: CalendarCheck, roles: ["ADMIN","MANAGER","SUPERVISOR","EMPLOYEE"] },
@@ -30,10 +30,10 @@ export default function Sidebar({ role }: { role: UserRole }) {
     <aside className="hidden lg:flex w-64 shrink-0 bg-gradient-to-b from-cardinal to-cardinal-700 text-white flex-col">
       <div className="p-5 border-b border-white/10">
         <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-md bg-white text-cardinal grid place-items-center font-display font-black">T&amp;G</div>
+          <div className="h-9 w-9 rounded-md bg-white text-cardinal grid place-items-center font-display font-black">USC</div>
           <div>
-            <div className="font-display text-lg leading-tight">USC Town &amp; Gown</div>
-            <div className="text-xs text-white/70">Banquet Operations</div>
+            <div className="font-display text-lg leading-tight">Private Events</div>
+            <div className="text-xs text-white/70">&amp; Conferences</div>
           </div>
         </Link>
       </div>
@@ -50,7 +50,7 @@ export default function Sidebar({ role }: { role: UserRole }) {
         })}
       </nav>
       <div className="p-3 text-xs text-white/60 border-t border-white/10">
-        v0.1 · Cardinal &amp; Gold
+        v0.3 · Cardinal &amp; Gold
       </div>
     </aside>
   );

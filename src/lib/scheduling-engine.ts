@@ -1,5 +1,5 @@
 /**
- * USC TNG Banquet — Scheduling Engine
+ * USC Private Events & Conferences — Scheduling Engine
  * ─────────────────────────────────────────────────────────────
  * Deterministic rule-based engine with explainable selection.
  *
@@ -73,6 +73,9 @@ export type EngineResult = {
 const DAY = ["SUN","MON","TUE","WED","THU","FRI","SAT"] as const;
 
 function dayOfWeekCode(d: Date) {
+  // Native Sun=0..Sat=6 lookup. Operational week ordering lives in week-config.ts;
+  // the scheduling engine only needs the date's calendar weekday for availability
+  // and time-off filtering, so we stick with the native enum mapping here.
   return DAY[d.getDay()];
 }
 function hoursBetween(a: Date, b: Date) {

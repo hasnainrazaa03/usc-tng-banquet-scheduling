@@ -31,15 +31,18 @@ export default function LoginPage() {
         <div className="absolute bottom-0 right-0 w-[420px] h-[420px] rounded-full bg-gold-400/30 blur-3xl" />
         <div className="relative z-10">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-md bg-white text-cardinal grid place-items-center font-display font-black text-lg">T&amp;G</div>
-            <div className="font-display text-xl tracking-tight">USC Town &amp; Gown</div>
+            <div className="h-10 w-10 rounded-md bg-white text-cardinal grid place-items-center font-display font-black text-lg">USC</div>
+            <div>
+              <div className="font-display text-xl leading-tight tracking-tight">Private Events</div>
+              <div className="text-xs text-white/70">&amp; Conferences</div>
+            </div>
           </div>
         </div>
         <div className="relative z-10 space-y-4 max-w-md">
           <h1 className="font-display text-5xl leading-tight">Banquet Operations, Reimagined.</h1>
           <p className="text-white/80 text-lg">
             Plan BEOs, schedule banquet staff by seniority, and print posting-ready
-            rosters — all in one place.
+            rosters across UPC, HSC, U Club, and USC Hotel — all in one place.
           </p>
           <div className="flex gap-2">
             <span className="pill bg-white/10 text-white border border-white/20">BEO Management</span>
@@ -57,8 +60,8 @@ export default function LoginPage() {
         <form onSubmit={onSubmit} className="w-full max-w-sm space-y-5">
           <div className="space-y-1">
             <div className="lg:hidden flex items-center gap-2 mb-4">
-              <div className="h-8 w-8 rounded-md bg-cardinal text-white grid place-items-center font-display font-black">T&amp;G</div>
-              <span className="font-display text-lg">USC Town &amp; Gown</span>
+              <div className="h-8 w-8 rounded-md bg-cardinal text-white grid place-items-center font-display font-black">USC</div>
+              <span className="font-display text-lg">Private Events &amp; Conferences</span>
             </div>
             <h2 className="font-display text-3xl">Sign in</h2>
             <p className="text-sm text-ink-muted">Welcome back. Use your operations credentials.</p>

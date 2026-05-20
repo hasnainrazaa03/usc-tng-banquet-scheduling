@@ -1,6 +1,6 @@
 # USC Town & Gown — Banquet Operations Platform
 
-A full-stack banquet staff scheduling & BEO management system for **USC Town and Gown / Private Events & Conferences**.
+A full-stack banquet operations platform for **USC Private Events & Conferences** — staff scheduling, BEO management, and venue operations across UPC, HSC, U Club, and USC Hotel.
 
 Built to mirror the existing paper workflow but improve it with AI-assisted
 scheduling, drag-and-drop editing, centralized server & BEO data, and a

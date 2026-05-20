@@ -1,4 +1,4 @@
-# Architecture Notes — USC TNG Banquet Operations Platform
+# Architecture Notes — USC Private Events & Conferences · Banquet Operations Platform
 
 This folder documents the moving parts of the system at a level a new
 engineer (or a returning author) can pick up in an afternoon. Every file
