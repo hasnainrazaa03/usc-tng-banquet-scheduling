@@ -1,0 +1,490 @@
+// USC Town & Gown — Banquet Scheduling & BEO System
+// Prisma schema (PostgreSQL)
+//
+// Tables align 1:1 with the spec (Server, EmployeeProfile, SeniorityRecord,
+// Availability, TimeOffRequest, BEO, BEOSection, Event, Location, Room, Role,
+// Qualification, Schedule, ScheduleVersion, Shift, ShiftRequirement,
+// ShiftAssignment, ScheduleLock, Notification, AuditLog, MasterDataVersion).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Identity & roles
+// ────────────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  SUPERVISOR
+  EMPLOYEE
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  role          UserRole @default(EMPLOYEE)
+  active        Boolean  @default(true)
+  server        Server?  @relation("UserServer")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  auditLogs     AuditLog[]
+  notifications Notification[]
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Staff / Servers
+// ────────────────────────────────────────────────────────────────────────────
+
+enum EmploymentStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+enum JobClassification {
+  LEAD_BANQUET_CAPTAIN
+  BANQUET_CAPTAIN
+  BANQUET_SERVER
+  BARTENDER
+  BARBACK
+  HOUSEPERSON
+  AV_TECH
+  SUPERVISOR
+  TRAINEE
+}
+
+model Server {
+  id                String             @id @default(cuid())
+  userId            String?            @unique
+  user              User?              @relation("UserServer", fields: [userId], references: [id], onDelete: SetNull)
+  employeeId        String             @unique
+  firstName         String
+  lastName          String
+  email             String?
+  phone             String?
+  hireDate          DateTime
+  classification    JobClassification  @default(BANQUET_SERVER)
+  status            EmploymentStatus   @default(ACTIVE)
+  preferredLocations String[]          @default([])
+  preferredShifts    String[]          @default([])
+  notes             String?
+  // Optional cached totals — recomputed by scheduling engine
+  ytdHours          Float              @default(0)
+  mtdHours          Float              @default(0)
+
+  profile           EmployeeProfile?
+  seniority         SeniorityRecord?
+  availability      Availability[]
+  timeOff           TimeOffRequest[]
+  qualifications    ServerQualification[]
+  assignments       ShiftAssignment[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model EmployeeProfile {
+  id           String   @id @default(cuid())
+  serverId     String   @unique
+  server       Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  address      String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  dietary      String?
+  uniformSize  String?
+  payRate      Float?
+  notes        String?
+}
+
+model SeniorityRecord {
+  id            String   @id @default(cuid())
+  serverId      String   @unique
+  server        Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  // Years of service (computed from hireDate, but stored for manual overrides)
+  yearsOfService Float   @default(0)
+  // Higher score = more senior. Composed of tenure + performance adjustments.
+  seniorityScore Float   @default(0)
+  // Rank within the active roster (1 = most senior).
+  seniorityRank  Int?
+  manualAdjustment Float @default(0)
+  notes          String?
+  lastReviewed   DateTime?
+  updatedAt      DateTime @updatedAt
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Availability & time off
+// ────────────────────────────────────────────────────────────────────────────
+
+enum DayOfWeek {
+  SUN
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+}
+
+model Availability {
+  id        String    @id @default(cuid())
+  serverId  String
+  server    Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  dayOfWeek DayOfWeek
+  startTime String    // HH:mm
+  endTime   String    // HH:mm
+  preference Int      @default(0) // -1 avoid, 0 neutral, 1 prefer
+  notes     String?
+
+  @@index([serverId, dayOfWeek])
+}
+
+enum TimeOffStatus {
+  PENDING
+  APPROVED
+  DENIED
+  CANCELLED
+}
+
+model TimeOffRequest {
+  id        String         @id @default(cuid())
+  serverId  String
+  server    Server         @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  startDate DateTime
+  endDate   DateTime
+  reason    String?
+  status    TimeOffStatus  @default(PENDING)
+  reviewedBy String?
+  reviewedAt DateTime?
+  createdAt DateTime       @default(now())
+
+  @@index([serverId, startDate, endDate])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Roles & qualifications
+// ────────────────────────────────────────────────────────────────────────────
+
+model Role {
+  id          String   @id @default(cuid())
+  code        String   @unique // e.g. SVR, CAP, BAR, AV
+  name        String
+  description String?
+  color       String?  // hex for UI
+
+  qualificationsRequired  RoleQualification[]
+  requirements            ShiftRequirement[]
+}
+
+model Qualification {
+  id          String   @id @default(cuid())
+  code        String   @unique // e.g. RBS, FOOD_HANDLER
+  name        String
+  description String?
+
+  servers     ServerQualification[]
+  roles       RoleQualification[]
+}
+
+model ServerQualification {
+  id              String        @id @default(cuid())
+  serverId        String
+  server          Server        @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  qualificationId String
+  qualification   Qualification @relation(fields: [qualificationId], references: [id], onDelete: Cascade)
+  obtainedDate    DateTime?
+  expiresDate     DateTime?
+  notes           String?
+
+  @@unique([serverId, qualificationId])
+}
+
+model RoleQualification {
+  id              String        @id @default(cuid())
+  roleId          String
+  role            Role          @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  qualificationId String
+  qualification   Qualification @relation(fields: [qualificationId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, qualificationId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Locations & rooms
+// ────────────────────────────────────────────────────────────────────────────
+
+model Location {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  address   String?
+  notes     String?
+  rooms     Room[]
+  beos      BEO[]
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  locationId  String
+  location    Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  code        String
+  name        String
+  capacity    Int?
+  setupTypes  String[] @default([])
+  notes       String?
+  events      Event[]
+
+  @@unique([locationId, code])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Banquet Event Orders
+// ────────────────────────────────────────────────────────────────────────────
+
+enum BEOStatus {
+  DRAFT
+  CONFIRMED
+  TENTATIVE
+  CANCELLED
+  COMPLETED
+}
+
+model BEO {
+  id              String       @id @default(cuid())
+  bookingId       String?      @unique
+  uepaNumber      String?
+  postAs          String       // event name / post as
+  account         String?
+  billingMethod   String?
+  contactName     String?
+  contactPhone    String?
+  contactEmail    String?
+  onsiteContact   String?
+  cateringManager String?
+
+  locationId      String?
+  location        Location?    @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  eventDate       DateTime
+  startTime       DateTime
+  endTime         DateTime
+  expectedGuests  Int?
+
+  menu            Json?        // structured menu data
+  av              Json?        // AV requirements
+  setupNotes      String?
+  specialInstructions String?
+  miscNotes       String?
+  handwrittenChanges  String?  // captures field edits / revised notes
+
+  status          BEOStatus    @default(DRAFT)
+  revisionDate    DateTime?
+
+  sections        BEOSection[]
+  events          Event[]
+  rawImportText   String?
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([eventDate])
+}
+
+// A section/function within a BEO (e.g., Reception, Dinner, Breakdown)
+model BEOSection {
+  id              String   @id @default(cuid())
+  beoId           String
+  beo             BEO      @relation(fields: [beoId], references: [id], onDelete: Cascade)
+  name            String
+  functionType    String?  // RECEPTION, BREAKFAST, LUNCH, DINNER, BREAK, MEETING, etc.
+  startTime       DateTime
+  endTime         DateTime
+  roomCode        String?
+  setupType       String?
+  guests          Int?
+  notes           String?
+  staffingNeeds   Json?    // [{ roleCode, count, notes }]
+}
+
+// Concrete operational event derived from a BEO section.
+// Schedules attach to Events.
+model Event {
+  id          String   @id @default(cuid())
+  beoId       String?
+  beo         BEO?     @relation(fields: [beoId], references: [id], onDelete: SetNull)
+  roomId      String?
+  room        Room?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  name        String
+  startsAt    DateTime
+  endsAt      DateTime
+  guests      Int?
+  notes       String?
+
+  shifts      Shift[]
+
+  @@index([startsAt])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Schedules & shifts
+// ────────────────────────────────────────────────────────────────────────────
+
+enum ScheduleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ShiftStatusCode {
+  NONE
+  OFF
+  VAC
+  MLA
+  SICK
+  HOLIDAY
+  TRAINING
+}
+
+model Schedule {
+  id          String          @id @default(cuid())
+  name        String
+  weekStart   DateTime        // Sunday 00:00
+  weekEnd     DateTime        // Saturday 23:59
+  status      ScheduleStatus  @default(DRAFT)
+  notes       String?
+  revisionDate DateTime?
+  createdBy   String?
+
+  versions    ScheduleVersion[]
+  shifts      Shift[]
+  locks       ScheduleLock[]
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([weekStart])
+}
+
+// Immutable snapshots for audit & undo
+model ScheduleVersion {
+  id          String   @id @default(cuid())
+  scheduleId  String
+  schedule    Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  versionNum  Int
+  snapshot    Json     // full JSON snapshot of shifts + assignments
+  reason      String?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  @@unique([scheduleId, versionNum])
+}
+
+model Shift {
+  id            String           @id @default(cuid())
+  scheduleId    String
+  schedule      Schedule         @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  eventId       String?
+  event         Event?           @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  date          DateTime         // calendar day
+  startsAt      DateTime
+  endsAt        DateTime
+  locationCode  String?
+  roomCode      String?
+  statusCode    ShiftStatusCode  @default(NONE)
+  label         String?          // free-form (e.g., "Breakfast Set", "PM Plated")
+  notes         String?
+
+  requirements  ShiftRequirement[]
+  assignments   ShiftAssignment[]
+
+  @@index([scheduleId, date])
+}
+
+model ShiftRequirement {
+  id        String   @id @default(cuid())
+  shiftId   String
+  shift     Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  count     Int      @default(1)
+  notes     String?
+}
+
+model ShiftAssignment {
+  id          String   @id @default(cuid())
+  shiftId     String
+  shift       Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  serverId    String
+  server      Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  roleCode    String?
+  locked      Boolean  @default(false) // when true, auto-scheduler will not modify
+  acknowledged Boolean @default(false)
+  assignedBy  String?
+  reason      String?  // AI explanation / manager note
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([shiftId, serverId])
+}
+
+model ScheduleLock {
+  id          String   @id @default(cuid())
+  scheduleId  String
+  schedule    Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  scope       String   // e.g., "shift:<id>", "server:<id>", "day:<iso>"
+  reason      String?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Notifications & audit
+// ────────────────────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // e.g., "SHIFT_ASSIGN", "BEO_UPDATE"
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  message   String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Master data versioning (for banquet_master_data.json imports)
+// ────────────────────────────────────────────────────────────────────────────
+
+model MasterDataVersion {
+  id          String   @id @default(cuid())
+  versionNum  Int      @unique
+  payload     Json
+  importedBy  String?
+  note        String?
+  createdAt   DateTime @default(now())
+}

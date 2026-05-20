@@ -1,0 +1,155 @@
+{
+  "$schema": "./banquet_master_data.schema.json",
+  "version": 1,
+  "department": {
+    "name": "USC Town & Gown / Private Events & Conferences",
+    "shortName": "TNG",
+    "timezone": "America/Los_Angeles",
+    "weekStartsOn": "SUN"
+  },
+  "locations": [
+    { "code": "TNG", "name": "Town and Gown", "address": "665 W Exposition Blvd, Los Angeles, CA" },
+    { "code": "TCC", "name": "Tutor Campus Center", "address": "3607 Trousdale Pkwy, Los Angeles, CA" },
+    { "code": "RWC", "name": "Ronald Tutor Hall", "address": "Trousdale Pkwy, Los Angeles, CA" },
+    { "code": "PED", "name": "Pertusati / Pardee", "address": "USC Campus" }
+  ],
+  "rooms": [
+    { "locationCode": "TNG", "code": "GBR", "name": "Grand Ballroom", "capacity": 600, "setupTypes": ["BANQUET", "RECEPTION", "THEATER", "CLASSROOM"] },
+    { "locationCode": "TNG", "code": "FOY", "name": "Foyer", "capacity": 200, "setupTypes": ["RECEPTION", "EXHIBIT"] },
+    { "locationCode": "TNG", "code": "PVT", "name": "Private Dining", "capacity": 80, "setupTypes": ["BANQUET", "CONFERENCE"] },
+    { "locationCode": "TCC", "code": "GH",  "name": "Grand Hall", "capacity": 450, "setupTypes": ["BANQUET", "RECEPTION", "THEATER"] },
+    { "locationCode": "TCC", "code": "FH",  "name": "Forum Hall", "capacity": 250, "setupTypes": ["BANQUET", "THEATER", "CLASSROOM"] }
+  ],
+  "eventTypes": [
+    "RECEPTION", "BREAKFAST", "BRUNCH", "LUNCH", "DINNER",
+    "CONFERENCE", "MEETING", "BREAK", "GALA", "WEDDING",
+    "AWARDS", "BOARD_DINNER", "DONOR_EVENT", "STUDENT_EVENT"
+  ],
+  "functionTypes": [
+    "PLATED_DINNER", "BUFFET", "STATIONS", "PASSED_HORS",
+    "BAR_SERVICE", "COFFEE_BREAK", "BREAKDOWN", "SETUP"
+  ],
+  "setupTemplates": [
+    { "code": "BANQUET_ROUNDS_10", "name": "Banquet rounds of 10", "guestsPerTable": 10 },
+    { "code": "BANQUET_ROUNDS_8",  "name": "Banquet rounds of 8",  "guestsPerTable": 8 },
+    { "code": "RECEPTION_HIGHTOP", "name": "Reception w/ high-tops", "guestsPerTable": null },
+    { "code": "THEATER", "name": "Theater style", "guestsPerTable": null },
+    { "code": "CLASSROOM", "name": "Classroom style", "guestsPerTable": null },
+    { "code": "U_SHAPE", "name": "U-shape boardroom", "guestsPerTable": null }
+  ],
+  "roles": [
+    { "code": "CAP", "name": "Banquet Captain", "color": "#7a0a0a", "qualifications": ["RBS"] },
+    { "code": "SVR", "name": "Banquet Server",  "color": "#990000" },
+    { "code": "BAR", "name": "Bartender",       "color": "#ad8b00", "qualifications": ["RBS"] },
+    { "code": "BBK", "name": "Barback",         "color": "#bfa600" },
+    { "code": "HSP", "name": "Houseperson",     "color": "#444" },
+    { "code": "AV",  "name": "AV Tech",         "color": "#005f73" },
+    { "code": "SUP", "name": "Supervisor",      "color": "#430303" }
+  ],
+  "qualifications": [
+    { "code": "RBS", "name": "Responsible Beverage Service" },
+    { "code": "FOOD_HANDLER", "name": "CA Food Handler Card" },
+    { "code": "FORKLIFT", "name": "Forklift Certified" },
+    { "code": "AV_LEVEL_1", "name": "Audio/Visual Level 1" }
+  ],
+  "shiftCodes": [
+    { "code": "AM", "name": "Morning",   "startsAt": "06:00", "endsAt": "14:00" },
+    { "code": "MID","name": "Mid",       "startsAt": "10:00", "endsAt": "18:00" },
+    { "code": "PM", "name": "Evening",   "startsAt": "14:00", "endsAt": "22:00" },
+    { "code": "GR", "name": "Graveyard", "startsAt": "22:00", "endsAt": "06:00" }
+  ],
+  "statusCodes": [
+    { "code": "NONE", "name": "Working", "color": "#ffffff" },
+    { "code": "OFF",  "name": "Off",     "color": "#e5e7eb" },
+    { "code": "VAC",  "name": "Vacation","color": "#fde68a" },
+    { "code": "MLA",  "name": "Military Leave / Medical Leave", "color": "#bae6fd" },
+    { "code": "SICK", "name": "Sick",    "color": "#fecaca" },
+    { "code": "HOLIDAY","name":"Holiday","color":"#ddd6fe" },
+    { "code": "TRAINING","name":"Training","color":"#bbf7d0" }
+  ],
+  "serviceWindows": {
+    "breakfast": { "start": "06:30", "end": "10:30" },
+    "lunch":     { "start": "11:00", "end": "14:30" },
+    "dinner":    { "start": "17:00", "end": "22:00" },
+    "reception": { "start": "16:00", "end": "20:00" }
+  },
+  "staffingRules": {
+    "serversPerGuests": {
+      "PLATED_DINNER": 16,
+      "BUFFET": 30,
+      "RECEPTION": 40,
+      "BREAKFAST": 30,
+      "LUNCH": 25,
+      "STATIONS": 25
+    },
+    "captainPerServers": 8,
+    "bartenderPerGuests": 75,
+    "barbackPerBartenders": 3,
+    "minLeadTimeMinutes": 60,
+    "minPostEventMinutes": 30
+  },
+  "breakRules": {
+    "shortBreakAfterHours": 4,
+    "shortBreakMinutes": 15,
+    "mealBreakAfterHours": 5,
+    "mealBreakMinutes": 30
+  },
+  "seniorityRules": {
+    "weightYears": 1.0,
+    "weightPerformance": 0.25,
+    "tieBreakers": ["hireDate", "lastAssignedAt", "name"],
+    "description": "Higher seniorityScore is preferred. Score = yearsOfService * weightYears + manualAdjustment."
+  },
+  "fairnessRules": {
+    "balanceWindowDays": 28,
+    "maxConsecutiveDays": 6,
+    "minRestHoursBetweenShifts": 10,
+    "preferEvenHourDistributionAfterSeniority": true
+  },
+  "printLayout": {
+    "header": "USC Town & Gown / Private Events & Conferences — Weekly Schedule",
+    "showRevisionDate": true,
+    "showMealBreakReminder": true,
+    "mealBreakReminderText": "All shifts ≥ 5h require a 30 minute unpaid meal break.",
+    "columns": ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"],
+    "rowsSortedBy": "seniorityRank"
+  },
+  "defaultScheduleTemplates": [
+    {
+      "code": "STANDARD_WEEK",
+      "name": "Standard 7-day week",
+      "days": [
+        { "day": "SUN", "shifts": ["AM", "PM"] },
+        { "day": "MON", "shifts": ["AM", "PM"] },
+        { "day": "TUE", "shifts": ["AM", "PM"] },
+        { "day": "WED", "shifts": ["AM", "PM"] },
+        { "day": "THU", "shifts": ["AM", "PM"] },
+        { "day": "FRI", "shifts": ["AM", "MID", "PM"] },
+        { "day": "SAT", "shifts": ["AM", "MID", "PM"] }
+      ]
+    }
+  ],
+  "commonPatterns": [
+    {
+      "name": "Donor dinner @ TNG GBR for 200",
+      "match": { "locationCode": "TNG", "roomCode": "GBR", "guestsMin": 150, "guestsMax": 260, "type": "PLATED_DINNER" },
+      "staffing": [
+        { "roleCode": "CAP", "count": 2 },
+        { "roleCode": "SVR", "count": 14 },
+        { "roleCode": "BAR", "count": 3 },
+        { "roleCode": "BBK", "count": 1 },
+        { "roleCode": "HSP", "count": 2 }
+      ]
+    },
+    {
+      "name": "Reception in Foyer for 100",
+      "match": { "locationCode": "TNG", "roomCode": "FOY", "guestsMin": 75, "guestsMax": 150, "type": "RECEPTION" },
+      "staffing": [
+        { "roleCode": "CAP", "count": 1 },
+        { "roleCode": "SVR", "count": 4 },
+        { "roleCode": "BAR", "count": 2 },
+        { "roleCode": "BBK", "count": 1 }
+      ]
+    }
+  ]
+}

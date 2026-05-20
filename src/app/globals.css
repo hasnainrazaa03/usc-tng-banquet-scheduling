@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --cardinal: #990000;
+  --gold: #FFCC00;
+  --ink: #0E0E10;
+  --canvas: #fafaf7;
+}
+
+html, body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-feature-settings: "ss01", "cv11";
+}
+
+* { box-sizing: border-box; }
+
+@layer base {
+  body {
+    @apply font-sans antialiased;
+  }
+  h1, h2, h3, h4 { @apply font-display tracking-tight; }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition
+           focus:outline-none focus:ring-2 focus:ring-cardinal/30 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-cardinal text-white hover:bg-cardinal-700 shadow-card;
+  }
+  .btn-gold {
+    @apply btn bg-gold-400 text-ink hover:bg-gold-500;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent hover:bg-canvas-soft text-ink;
+  }
+  .btn-outline {
+    @apply btn border border-ink/15 hover:bg-canvas-soft;
+  }
+  .card {
+    @apply bg-white rounded-2xl shadow-card border border-ink/5;
+  }
+  .input {
+    @apply w-full rounded-lg border border-ink/15 bg-white px-3 py-2 text-sm
+           focus:outline-none focus:ring-2 focus:ring-cardinal/30 focus:border-cardinal/40;
+  }
+  .label {
+    @apply block text-xs font-medium uppercase tracking-wider text-ink-muted mb-1;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+  .table-zebra tbody tr:nth-child(even) { @apply bg-canvas-soft/40; }
+  .nav-link {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 transition;
+  }
+  .nav-link.active {
+    @apply bg-white text-cardinal shadow;
+  }
+}
+
+/* Print-specific weekly schedule layout */
+@media print {
+  @page { size: landscape; margin: 0.4in; }
+  body { background: white !important; color: black !important; }
+  .no-print, .no-print * { display: none !important; }
+  .print-card { box-shadow: none !important; border: 1px solid #000 !important; border-radius: 0 !important; }
+  .schedule-cell { break-inside: avoid; }
+}

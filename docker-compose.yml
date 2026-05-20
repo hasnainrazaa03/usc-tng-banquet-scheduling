@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: tng_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tng
+      POSTGRES_PASSWORD: tng
+      POSTGRES_DB: tng_scheduling
+    ports:
+      - "5432:5432"
+    volumes:
+      - tng_pgdata:/var/lib/postgresql/data
+
+volumes:
+  tng_pgdata:
