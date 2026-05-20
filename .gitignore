@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Prisma / DB local files
+prisma/dev.db
+prisma/dev.db-journal
+prisma/migrations/dev_*
+
+# Deployment artifacts
+.vercel
+.turbo
+.cache/
+
+# Coverage / test artifacts
+coverage/
+.nyc_output/
+
+# Generated docs
+storybook-static/
