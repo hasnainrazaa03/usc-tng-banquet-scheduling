@@ -1,11 +1,11 @@
 # Changelog
 
-All notable changes to the **USC Town & Gown — Banquet Operations Platform** are documented in this file.
+All notable changes to **USC Private Events & Conferences — Banquet Operations Platform** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> Versioning policy: `0.x.y` covers MVP and Phase 2 hardening; `1.0.0` is reserved
+> Versioning policy: `0.x.y` covers MVP and Phase 2/3 hardening; `1.0.0` is reserved
 > for the first production cut over to real USC operational data.
 
 ---
@@ -14,9 +14,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 - Email / SMS shift notifications
-- Native CSV / PDF BEO importer
+- Native CSV / PDF BEO importer (full pipeline + UI on top of v0.3 staging)
+- Roster CSV promotion (currently stubbed)
 - Employee self-service availability + time-off flows
 - Server-side virtualization for very large schedules
+- ML scoring plugin trained on `HistoricalAssignment` archive
+
+---
+
+## [0.3.0] — Phase 3: Rebrand, venue overhaul, week redesign, ML hooks
+
+### Added
+- **Rebrand to USC Private Events & Conferences** (Cardinal & Gold) across
+  layout title, login screen, dashboard, sidebar footer, README, architecture
+  docs, and engine comments. New favicon (`public/favicon.svg`).
+- **Thursday-first operational week** (`src/lib/week-config.ts`) with helpers
+  `startOfOperationalWeek`, `dowCode`, `isoLocalDate`, `previousWeekStart`,
+  `nextWeekStart`. The schedule board, print view, and seed all iterate days
+  Thursday → Wednesday now.
+- **Schedule board redesign:** floating Servers Drawer (right slide-over) with
+  search + role/location filters, week navigator (Prev / Today / Next + sibling
+  dropdown) above the toolbar, density-aware Day grid (compact / comfortable),
+  weekend gold tint, persistent prefs in `usc-pec-board-prefs`.
+- **Print refinements:** landscape `@page` with print-color-adjust, density
+  classes (`print-density-tight|normal|roomy`), header-group repeat, smart
+  break utilities (`print-page-break-before`, `print-avoid-break`).
+- **Expanded seed data:** prior + next operational weeks (with `findFirst`
+  idempotency), HSC Keck School Faculty Reception BEO + shift on next week.
+- **ML-ready hooks:** `HistoricalAssignment` Prisma model (assignment archive
+  with score vector + outcome signals) and `ScoringPlugin` interface
+  (`src/lib/scheduling/plugins.ts`) with a `PluginRegistry` that the engine
+  will wire into in v0.4.
+- **Import staging:** `ImportStage` Prisma model + `ImportAdapter` contract in
+  `src/lib/import/staging.ts`. Roster CSV adapter stub (parse + validate)
+  ships now; promotion lands in v0.4.
+
+### Changed
+- `Location` listing page renders as `VenueGroup → Location → Venue` tree with
+  an orphan section for unmapped locations.
+- `Schedule.weekStart` semantics now interpreted as the Thursday anchor;
+  `startOfWeek` delegates to `startOfOperationalWeek`.
+- Sidebar nav: "Locations" → "Venues"; footer version `v0.3 · Cardinal & Gold`.
+- `app/layout.tsx` title template: `"%s · USC Private Events & Conferences"`;
+  `viewport` exported separately per Next 14 conventions.
+
+### Fixed
+- `/locations` 500 caused by stale Prisma client (now regenerated on schema
+  push).
+- `api/master-data` duplicate `dryRun` key.
+- Seed compile error from stray closing braces left by rebrand replace.
 
 ---
 

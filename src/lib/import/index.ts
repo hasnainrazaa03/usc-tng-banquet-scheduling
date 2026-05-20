@@ -15,3 +15,16 @@
 
 export { importMasterData } from "./master-data-importer";
 export type { ImportResult } from "./master-data-importer";
+
+// v0.3 staging-based import surface (roster CSV + plugin scaffold)
+export {
+  rosterCsvAdapter,
+  adapters,
+} from "./staging";
+export type {
+  ImportAdapter,
+  RosterRow,
+  ValidationIssue,
+  ValidationResult,
+  PromoteResult,
+} from "./staging";

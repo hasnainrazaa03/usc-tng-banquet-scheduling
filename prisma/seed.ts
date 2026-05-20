@@ -377,6 +377,101 @@ async function main() {
     });
   }
 
+  // 7) Adjacent weeks (previous + next) — gives the WeekNavigator something to
+  //    surface in the sibling picker and exercises the multi-week scheduling
+  //    engine in seeded state. Each gets a different venue group to keep the
+  //    demo varied.
+  const prevWeekStart = addDays(weekStart, -7);
+  const existingPrev = await prisma.schedule.findFirst({ where: { weekStart: prevWeekStart } });
+  if (!existingPrev) {
+    await prisma.schedule.create({
+      data: {
+        name: `Week of ${prevWeekStart.toISOString().slice(0, 10)}`,
+        weekStart: prevWeekStart,
+        weekEnd: addDays(prevWeekStart, 6),
+        status: ScheduleStatus.PUBLISHED,
+        notes: "Prior operational week (seeded)",
+        revisionDate: today,
+        createdBy: adminUser.id,
+      },
+    });
+  }
+
+  const nextWeekStart = addDays(weekStart, 7);
+  const existingNext = await prisma.schedule.findFirst({ where: { weekStart: nextWeekStart } });
+  const nextSchedule =
+    existingNext ??
+    (await prisma.schedule.create({
+      data: {
+        name: `Week of ${nextWeekStart.toISOString().slice(0, 10)}`,
+        weekStart: nextWeekStart,
+        weekEnd: addDays(nextWeekStart, 6),
+        status: ScheduleStatus.DRAFT,
+        notes: "Next operational week (seeded)",
+        revisionDate: today,
+        createdBy: adminUser.id,
+      },
+    }));
+
+  // Secondary BEO at HSC for the next week to vary the demo
+  const hsc = await prisma.location.findUnique({ where: { code: "HSC" } });
+  const hscBallroom = hsc
+    ? await prisma.room.findFirst({ where: { locationId: hsc.id } })
+    : null;
+  if (hsc) {
+    const ev2Date = addDays(nextWeekStart, 3);
+    const beo2 = await prisma.bEO.create({
+      data: {
+        postAs: "Keck School Faculty Reception",
+        account: "USC Keck School of Medicine",
+        bookingId: "BK-2026-1101",
+        billingMethod: "Internal Transfer",
+        contactName: "Dr. Marcus Reyes",
+        contactPhone: "323-555-1010",
+        contactEmail: "reyes@usc.edu",
+        cateringManager: "Maria Manager",
+        locationId: hsc.id,
+        eventDate: ev2Date,
+        startTime: atTime(ev2Date, "18:00"),
+        endTime: atTime(ev2Date, "21:00"),
+        expectedGuests: 90,
+        menu: { passed: ["Crudite", "Mini quiche", "Tuna tartare"], bar: ["Beer + wine only"] },
+        setupNotes: "Hightops + 2 bars in main lobby",
+        status: BEOStatus.CONFIRMED,
+        revisionDate: today,
+      },
+    });
+    const ev3 = await prisma.event.create({
+      data: {
+        beoId: beo2.id,
+        roomId: hscBallroom?.id ?? null,
+        name: "Keck Reception",
+        startsAt: atTime(ev2Date, "18:00"),
+        endsAt: atTime(ev2Date, "21:00"),
+        guests: 90,
+      },
+    });
+    await prisma.shift.create({
+      data: {
+        scheduleId: nextSchedule.id,
+        eventId: ev3.id,
+        date: atTime(ev2Date, "00:00"),
+        startsAt: atTime(ev2Date, "17:00"),
+        endsAt: atTime(ev2Date, "21:30"),
+        locationCode: "HSC",
+        label: "Keck Reception",
+        statusCode: ShiftStatusCode.NONE,
+        requirements: {
+          create: [
+            ...(capRole ? [{ roleId: capRole.id, count: 1 }] : []),
+            ...(svrRole ? [{ roleId: svrRole.id, count: 6 }] : []),
+            ...(barRole ? [{ roleId: barRole.id, count: 2 }] : []),
+          ],
+        },
+      },
+    });
+  }
+
   console.log("✓ Seed complete.");
   console.log("  Login: admin@tng.usc.edu / password123  (ADMIN)");
   console.log("  Login: manager@tng.usc.edu / password123 (MANAGER)");
