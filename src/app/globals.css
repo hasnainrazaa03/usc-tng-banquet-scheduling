@@ -67,9 +67,32 @@ html, body {
 
 /* Print-specific weekly schedule layout */
 @media print {
-  @page { size: landscape; margin: 0.4in; }
-  body { background: white !important; color: black !important; }
+  @page { size: 11in 8.5in landscape; margin: 0.35in; }
+  html, body { background: white !important; color: black !important; }
   .no-print, .no-print * { display: none !important; }
-  .print-card { box-shadow: none !important; border: 1px solid #000 !important; border-radius: 0 !important; }
-  .schedule-cell { break-inside: avoid; }
+  .print-card {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+  .schedule-cell, .print-row { break-inside: avoid; page-break-inside: avoid; }
+  /* Repeating header on every printed page */
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+  tr   { page-break-inside: avoid; }
+  /* Density variants — toggled via root class for user preview */
+  .print-density-tight   { font-size: 8.5pt; line-height: 1.05; }
+  .print-density-normal  { font-size: 9.5pt; line-height: 1.15; }
+  .print-density-roomy   { font-size: 10.5pt; line-height: 1.25; }
+  .print-hide-empty .print-empty-row { display: none !important; }
+}
+
+/* Screen preview: emulate paper with a sheet-style frame */
+.paper-sheet {
+  background: white;
+  box-shadow: 0 1px 2px rgba(15,15,15,.08), 0 12px 32px -16px rgba(15,15,15,.22);
+  border: 1px solid rgba(15,15,15,.08);
+  border-radius: 4px;
 }

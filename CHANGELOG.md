@@ -24,27 +24,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Venue hierarchy:** `VenueGroup` model (UPC, U Club, HSC, USC Hotel) with
-  `Location → Room` cascade. `Location` now carries an optional
-  `venueGroupId` FK so existing data continues to work.
-- **Import adapter framework:** `src/lib/import/` with typed adapters,
-  validation, and dry-run support for master data and roster CSVs.
-- **Master data versioning + JSON schema:** `data/banquet_master_data.schema.json`
-  is now enforced server-side on save (zod).
-- **Documentation suite:** `docs/architecture/` covers scheduling engine,
-  venue hierarchy, BEO pipeline, drag-and-drop board, and print rendering.
+  `Location → Room → EventSpace` cascade. `Location` now carries an
+  optional `venueGroupId` FK so existing data continues to work.
+- **`EventSpace` model:** for setup variants of a room (e.g. GBR-FULL / GBR-A /
+  GBR-B) so future BEOs can pin a configuration without renaming the room.
+- **Import adapter framework:** `src/lib/import/` with `importMasterData()`
+  — zod-validated, transaction-aware, dry-run capable, idempotent.
+- **`src/lib/master-data/schema.ts`:** zod schema + `normalizeMasterData()`
+  that accepts both nested (`venueGroups[]`) and legacy flat
+  (`locations[]` / `rooms[]`) shapes.
+- **`/api/master-data` POST** now validates with zod, supports `dryRun`, and
+  wraps version-create + import + audit in a single transaction.
+- **`scripts/seed_venues.ts`:** one-shot venue importer for live DB updates.
+- **Roster grid view** on the board: server-rows × day-columns with sticky
+  top header and sticky left server column, density toggle, openings badge
+  per day, conflict warnings, role-colored cells.
+- **Conflict detection:** the board now highlights any server assigned to
+  two overlapping shifts in red, with a count in the top-bar.
+- **Open Shifts callout** on the printable schedule listing every unfilled
+  role with day / time / location / role / count needed.
 - **CHANGELOG.md** (this file) and semver tagging starting at `v0.2.0`.
 
 ### Changed
-- **Schedule board redesigned:** server-down × day-across grid with sticky
-  header row, sticky server column, conflict and unfilled-shift highlighting,
-  improved drag-and-drop ergonomics, role-colored shift chips, density toggle.
-- **Print layout redesigned:** proper landscape scaling, dynamic row sizing,
-  page breaks every N rows, condensed/full modes, repeating headers, revision
-  metadata block.
+- **Schedule board redesigned:** day-grid + roster-grid tabs, sticky header,
+  sticky server column on the roster view, conflict and unfilled-shift
+  highlighting, role-colored shift chips, density toggle, improved
+  drag-and-drop ergonomics with proper drag overlay and role-slot drop zones.
+- **Print layout redesigned:** proper landscape `@page` with density toggle
+  (tight / normal / roomy), repeating thead per printed page,
+  page-break-inside-avoid on rows, per-server weekly hours total, paper-sheet
+  on-screen preview, revision metadata block, role & status legend.
 - **Master data JSON** now groups locations under `venueGroups`. Old flat
   `locations[]` is still accepted by the importer as a fallback.
-- **Global design tokens:** tightened typography scale, denser table styles,
-  refined shadow + border treatments, USC Cardinal palette polish.
+- **`prisma/seed.ts`** routes through `importMasterData()` so the seed path
+  and the API path share one implementation.
 
 ### Fixed
 - AI BEO extractor now correctly awaited in `/api/beos/import`.
