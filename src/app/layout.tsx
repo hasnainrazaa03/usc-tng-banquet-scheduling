@@ -1,9 +1,22 @@
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
-  title: "USC T&G Banquet Operations",
-  description: "Banquet staff scheduling & BEO management for USC Town and Gown.",
+  title: {
+    default: "USC Private Events & Conferences",
+    template: "%s · USC Private Events & Conferences",
+  },
+  description:
+    "Banquet operations platform for USC Private Events & Conferences — staff scheduling, BEO management, and venue operations.",
+  applicationName: "USC Private Events & Conferences",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#990000",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { startOfOperationalWeek } from "./week-config";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -18,11 +19,12 @@ export function fmtDay(d: Date | string) {
   return x.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
 }
 
+/**
+ * Operational week start (Thursday). Delegates to `week-config.ts` so the
+ * week-start is configurable in one place.
+ */
 export function startOfWeek(d: Date) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  x.setDate(x.getDate() - x.getDay());
-  return x;
+  return startOfOperationalWeek(d);
 }
 export function addDays(d: Date, n: number) {
   const x = new Date(d);

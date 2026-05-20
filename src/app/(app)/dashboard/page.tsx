@@ -35,7 +35,7 @@ export default async function DashboardPage() {
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-4xl">Operations Dashboard</h1>
-          <p className="text-ink-muted">Today is {fmtDate(now)} · USC Town &amp; Gown / Private Events &amp; Conferences</p>
+          <p className="text-ink-muted">Today is {fmtDate(now)} · USC Private Events &amp; Conferences</p>
         </div>
         <div className="flex gap-2">
           <Link href="/schedule/generate" className="btn-primary"><Wand2 className="h-4 w-4" />Generate Schedule</Link>

@@ -2,7 +2,7 @@
   "name": "tng-scheduling-system",
   "version": "0.1.0",
   "private": true,
-  "description": "USC Town and Gown / Private Events & Conferences — Banquet Staff Scheduling & BEO Management System",
+  "description": "USC Private Events & Conferences — Banquet Operations Platform (scheduling, BEO management, venue operations)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

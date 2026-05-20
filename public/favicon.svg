@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#A30013"/>
+      <stop offset="1" stop-color="#7A0000"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="url(#g)"/>
+  <text x="32" y="40" text-anchor="middle"
+        font-family="ui-sans-serif, system-ui, -apple-system, Inter, sans-serif"
+        font-weight="900" font-size="22" fill="#FFCC00" letter-spacing="0.5">USC</text>
+  <rect x="10" y="48" width="44" height="3" rx="1.5" fill="#FFCC00"/>
+</svg>

@@ -1,5 +1,6 @@
 "use client";
 import { useMemo } from "react";
+import { DOW_OPERATIONAL, dowCode, type DowCode } from "@/lib/week-config";
 
 type Schedule = {
   id: string;
@@ -35,7 +36,7 @@ type Server = {
   seniorityRank: number | null;
 };
 
-const DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
+const DOW = DOW_OPERATIONAL;
 
 const STATUS_BG: Record<string, string> = {
   OFF: "bg-gray-200",
@@ -80,10 +81,12 @@ export default function PrintSchedule({
 }) {
   type Cell = { time: string; loc: string; role: string; label: string; status: string };
   const cells = useMemo(() => {
-    const m: Record<string, Record<string, Cell[]>> = {};
-    for (const s of servers) m[s.id] = { SUN: [], MON: [], TUE: [], WED: [], THU: [], FRI: [], SAT: [] };
+    const m: Record<string, Record<DowCode, Cell[]>> = {};
+    for (const s of servers) {
+      m[s.id] = { SUN: [], MON: [], TUE: [], WED: [], THU: [], FRI: [], SAT: [] };
+    }
     for (const sh of shifts) {
-      const dow = DOW[new Date(sh.date).getDay()];
+      const dow = dowCode(sh.date);
       if (sh.statusCode !== "NONE") {
         for (const a of sh.assignments) {
           m[a.serverId]?.[dow]?.push({ time: "", loc: "", role: "", label: "", status: sh.statusCode });
@@ -108,7 +111,7 @@ export default function PrintSchedule({
     const out: { date: string; time: string; loc: string; label: string; role: string; missing: number }[] = [];
     for (const sh of shifts) {
       if (sh.statusCode !== "NONE") continue;
-      const dow = DOW[new Date(sh.date).getDay()];
+      const dow = dowCode(sh.date);
       for (const req of sh.requirements) {
         const filled = sh.assignments.filter((a) => a.roleCode === req.roleCode).length;
         if (filled < req.count) {
@@ -144,7 +147,7 @@ export default function PrintSchedule({
       {/* Header */}
       <div className="border-b-2 border-cardinal pb-3 mb-3 flex items-start justify-between gap-4">
         <div>
-          <div className="font-display text-2xl leading-tight">USC Town &amp; Gown / Private Events &amp; Conferences</div>
+          <div className="font-display text-2xl leading-tight">USC Private Events &amp; Conferences</div>
           <div className="text-sm">Weekly Banquet Schedule</div>
           <div className="text-xs text-ink-muted mt-1">{schedule.name}</div>
         </div>
@@ -307,7 +310,7 @@ export default function PrintSchedule({
           ))}
         </div>
         <div className="text-[8px] text-ink-muted pt-1 text-right">
-          Generated {new Date().toLocaleString("en-US")} · USC TNG Banquet Operations
+          Generated {new Date().toLocaleString("en-US")} · USC Private Events &amp; Conferences
         </div>
       </div>
     </div>
