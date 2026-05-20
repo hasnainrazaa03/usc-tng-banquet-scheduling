@@ -3,6 +3,7 @@ import { PrismaClient, UserRole, JobClassification, DayOfWeek, BEOStatus, Schedu
 import bcrypt from "bcryptjs";
 import fs from "node:fs";
 import path from "node:path";
+import { importMasterData } from "../src/lib/import";
 
 const prisma = new PrismaClient();
 
@@ -28,32 +29,24 @@ function sundayOf(d: Date) {
 
 async function main() {
   console.log("→ Seeding USC TNG Banquet system…");
-
-  // 1) Master data → locations, rooms, roles, qualifications
+venue groups, locations, rooms, event spaces, roles,
+  //    qualifications (via the typed importer so old + new shapes both work).
   const master = JSON.parse(fs.readFileSync(MASTER_DATA_PATH, "utf-8"));
   await prisma.masterDataVersion.create({
     data: { versionNum: master.version ?? 1, payload: master, note: "Initial import (seed)" },
   });
 
-  // Locations & rooms
-  for (const loc of master.locations) {
-    await prisma.location.upsert({
-      where: { code: loc.code },
-      create: { code: loc.code, name: loc.name, address: loc.address ?? null },
-      update: { name: loc.name, address: loc.address ?? null },
-    });
+  const importResult = await importMasterData(master);
+  if (!importResult.ok) {
+    console.error("✗ master data validation failed:", importResult.errors);
+    process.exit(1);
   }
-  for (const r of master.rooms) {
-    const loc = await prisma.location.findUnique({ where: { code: r.locationCode } });
-    if (!loc) continue;
-    await prisma.room.upsert({
-      where: { locationId_code: { locationId: loc.id, code: r.code } },
-      create: {
-        locationId: loc.id, code: r.code, name: r.name,
-        capacity: r.capacity ?? null, setupTypes: r.setupTypes ?? [],
-      },
-      update: { name: r.name, capacity: r.capacity ?? null, setupTypes: r.setupTypes ?? [] },
-    });
+  console.log(
+    `✓ Imported ${importResult.counts.venueGroups} venue groups, ` +
+    `${importResult.counts.locations} locations, ` +
+    `${importResult.counts.rooms} rooms, ` +
+    `${importResult.counts.eventSpaces} event spaces.`,
+  ); });
   }
 
   // Qualifications

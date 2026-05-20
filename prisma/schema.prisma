@@ -219,31 +219,78 @@ model RoleQualification {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Locations & rooms
+// Venue hierarchy: VenueGroup → Location → Room → EventSpace
+//
+// VenueGroup represents the top-level USC venue families (UPC, U Club,
+// HSC, USC Hotel). A Location belongs to at most one VenueGroup; the FK
+// is optional so legacy locations created before Phase 2 still load.
+//
+// EventSpace is a configurable subdivision of a Room used for specific
+// event setups (e.g., GBR-A, GBR-B, full ballroom). It is also optional;
+// shifts/BEOs can still attach directly to a Room.
 // ────────────────────────────────────────────────────────────────────────────
 
+enum VenueGroupCode {
+  UPC          // University Park Campus
+  U_CLUB       // University Club
+  HSC          // Health Sciences Campus
+  USC_HOTEL    // USC Hotel & Conference Center
+  OTHER
+}
+
+model VenueGroup {
+  id          String         @id @default(cuid())
+  code        VenueGroupCode @unique
+  name        String
+  shortName   String?
+  description String?
+  active      Boolean        @default(true)
+  locations   Location[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
 model Location {
-  id        String   @id @default(cuid())
-  code      String   @unique
-  name      String
-  address   String?
-  notes     String?
-  rooms     Room[]
-  beos      BEO[]
+  id            String      @id @default(cuid())
+  code          String      @unique
+  name          String
+  address       String?
+  notes         String?
+  venueGroupId  String?
+  venueGroup    VenueGroup? @relation(fields: [venueGroupId], references: [id], onDelete: SetNull)
+  rooms         Room[]
+  beos          BEO[]
+
+  @@index([venueGroupId])
 }
 
 model Room {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   locationId  String
-  location    Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  location    Location      @relation(fields: [locationId], references: [id], onDelete: Cascade)
   code        String
   name        String
   capacity    Int?
-  setupTypes  String[] @default([])
+  setupTypes  String[]      @default([])
   notes       String?
   events      Event[]
+  spaces      EventSpace[]
 
   @@unique([locationId, code])
+}
+
+model EventSpace {
+  id          String   @id @default(cuid())
+  roomId      String
+  room        Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  code        String
+  name        String
+  capacity    Int?
+  setupCode   String?    // points to a setupTemplate in master data
+  notes       String?
+  active      Boolean    @default(true)
+
+  @@unique([roomId, code])
 }
 
 // ────────────────────────────────────────────────────────────────────────────

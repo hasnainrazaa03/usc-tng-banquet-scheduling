@@ -1,17 +1,102 @@
 {
   "$schema": "./banquet_master_data.schema.json",
-  "version": 1,
+  "version": 2,
   "department": {
     "name": "USC Town & Gown / Private Events & Conferences",
     "shortName": "TNG",
     "timezone": "America/Los_Angeles",
     "weekStartsOn": "SUN"
   },
+  "venueGroups": [
+    {
+      "code": "UPC",
+      "name": "University Park Campus",
+      "shortName": "UPC",
+      "description": "Main USC campus venues including Town & Gown, Tutor Campus Center, and Pertusati.",
+      "locations": [
+        {
+          "code": "TNG",
+          "name": "Town and Gown",
+          "address": "665 W Exposition Blvd, Los Angeles, CA",
+          "rooms": [
+            { "code": "GBR", "name": "Grand Ballroom", "capacity": 600, "setupTypes": ["BANQUET", "RECEPTION", "THEATER", "CLASSROOM"], "spaces": [
+              { "code": "GBR-FULL", "name": "Full Ballroom", "capacity": 600 },
+              { "code": "GBR-A",    "name": "Ballroom A",   "capacity": 300 },
+              { "code": "GBR-B",    "name": "Ballroom B",   "capacity": 300 }
+            ]},
+            { "code": "FOY", "name": "Foyer", "capacity": 200, "setupTypes": ["RECEPTION", "EXHIBIT"] },
+            { "code": "PVT", "name": "Private Dining", "capacity": 80, "setupTypes": ["BANQUET", "CONFERENCE"] }
+          ]
+        },
+        {
+          "code": "TCC",
+          "name": "Tutor Campus Center",
+          "address": "3607 Trousdale Pkwy, Los Angeles, CA",
+          "rooms": [
+            { "code": "GH", "name": "Grand Hall",  "capacity": 450, "setupTypes": ["BANQUET", "RECEPTION", "THEATER"] },
+            { "code": "FH", "name": "Forum Hall", "capacity": 250, "setupTypes": ["BANQUET", "THEATER", "CLASSROOM"] }
+          ]
+        },
+        {
+          "code": "PED",
+          "name": "Pertusati / Pardee",
+          "address": "USC Campus",
+          "rooms": []
+        }
+      ]
+    },
+    {
+      "code": "U_CLUB",
+      "name": "University Club",
+      "shortName": "U Club",
+      "description": "Members-only private events club on the UPC perimeter.",
+      "locations": [
+        {
+          "code": "UCLUB",
+          "name": "University Club of USC",
+          "address": "Hellman Way, Los Angeles, CA",
+          "rooms": []
+        }
+      ]
+    },
+    {
+      "code": "HSC",
+      "name": "Health Sciences Campus",
+      "shortName": "HSC",
+      "description": "USC Health Sciences Campus venues (Eastlake Avenue).",
+      "locations": [
+        {
+          "code": "HSC-MAIN",
+          "name": "HSC Conference Center",
+          "address": "1975 Zonal Ave, Los Angeles, CA",
+          "rooms": []
+        }
+      ]
+    },
+    {
+      "code": "USC_HOTEL",
+      "name": "USC Hotel & Conference Center",
+      "shortName": "USC Hotel",
+      "description": "USC's flagship hotel and conference operation across Figueroa.",
+      "locations": [
+        {
+          "code": "USCH",
+          "name": "USC Hotel",
+          "address": "3540 S Figueroa St, Los Angeles, CA",
+          "rooms": []
+        }
+      ]
+    }
+  ],
+
+  "_legacy_locations_kept_for_back_compat": "Flat locations[] is now derived from venueGroups by the importer. Imports of the old shape are still accepted.",
   "locations": [
-    { "code": "TNG", "name": "Town and Gown", "address": "665 W Exposition Blvd, Los Angeles, CA" },
-    { "code": "TCC", "name": "Tutor Campus Center", "address": "3607 Trousdale Pkwy, Los Angeles, CA" },
-    { "code": "RWC", "name": "Ronald Tutor Hall", "address": "Trousdale Pkwy, Los Angeles, CA" },
-    { "code": "PED", "name": "Pertusati / Pardee", "address": "USC Campus" }
+    { "code": "TNG", "name": "Town and Gown", "address": "665 W Exposition Blvd, Los Angeles, CA", "venueGroupCode": "UPC" },
+    { "code": "TCC", "name": "Tutor Campus Center", "address": "3607 Trousdale Pkwy, Los Angeles, CA", "venueGroupCode": "UPC" },
+    { "code": "PED", "name": "Pertusati / Pardee", "address": "USC Campus", "venueGroupCode": "UPC" },
+    { "code": "UCLUB", "name": "University Club of USC", "address": "Hellman Way, Los Angeles, CA", "venueGroupCode": "U_CLUB" },
+    { "code": "HSC-MAIN", "name": "HSC Conference Center", "address": "1975 Zonal Ave, Los Angeles, CA", "venueGroupCode": "HSC" },
+    { "code": "USCH", "name": "USC Hotel", "address": "3540 S Figueroa St, Los Angeles, CA", "venueGroupCode": "USC_HOTEL" }
   ],
   "rooms": [
     { "locationCode": "TNG", "code": "GBR", "name": "Grand Ballroom", "capacity": 600, "setupTypes": ["BANQUET", "RECEPTION", "THEATER", "CLASSROOM"] },
