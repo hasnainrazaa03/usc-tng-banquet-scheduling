@@ -32,6 +32,26 @@ printable weekly roster that matches the operational paper format.
 - **Audit log** for every schedule change, BEO update, master data save
 - **Seed data**: 20 servers across ~21 years of tenure, sample BEO (Dornsife Donor Gala), generated schedule + shifts, time-off request, demo accounts
 
+## What's new in Phase 2 (v0.2.0)
+
+- **Venue hierarchy** — `VenueGroup → Location → Room → EventSpace`
+  for `UPC`, `U_CLUB`, `HSC`, and `USC_HOTEL`. Backwards-compatible with
+  existing flat data. See [docs/architecture/venue-hierarchy.md](docs/architecture/venue-hierarchy.md).
+- **Typed import pipeline** — every operational data file (master data,
+  future roster CSV, future BEO files) goes through a zod-validated,
+  dry-run-capable, transaction-aware adapter under
+  [`src/lib/import/`](src/lib/import). See [docs/architecture/import-pipeline.md](docs/architecture/import-pipeline.md).
+- **Schedule board redesign** — Day grid + new Roster grid view
+  (server-rows × day-columns spreadsheet with sticky header + sticky
+  first column), conflict detection, density toggle. See
+  [docs/architecture/drag-and-drop.md](docs/architecture/drag-and-drop.md).
+- **Print redesign** — proper landscape `@page`, repeating thead,
+  density toggle (tight/normal/roomy), per-server weekly hours total,
+  Open Shifts callout. See [docs/architecture/print-rendering.md](docs/architecture/print-rendering.md).
+- **Architecture docs** — every subsystem is documented under
+  [docs/architecture/](docs/architecture/).
+- **CHANGELOG.md** + semver tagging starting at `v0.2.0`.
+
 ---
 
 ## Quick start
@@ -141,3 +161,17 @@ horizontally for dense data.
 - OpenAI integration for richer BEO extraction (drop your key in `OPENAI_API_KEY`)
 - Server self-service: availability editor + accept/decline flow on `/availability` and `/time-off`
 - Templates: save common shift patterns per event type and apply with one click
+
+---
+
+## Further reading
+
+- [CHANGELOG.md](CHANGELOG.md) — what changed between versions.
+- [docs/architecture/](docs/architecture/) — deep-dives on each subsystem:
+  - [scheduling-engine.md](docs/architecture/scheduling-engine.md)
+  - [venue-hierarchy.md](docs/architecture/venue-hierarchy.md)
+  - [beo-pipeline.md](docs/architecture/beo-pipeline.md)
+  - [drag-and-drop.md](docs/architecture/drag-and-drop.md)
+  - [print-rendering.md](docs/architecture/print-rendering.md)
+  - [db-relationships.md](docs/architecture/db-relationships.md)
+  - [import-pipeline.md](docs/architecture/import-pipeline.md)
