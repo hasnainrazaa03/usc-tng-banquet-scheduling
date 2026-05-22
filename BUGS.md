@@ -57,6 +57,27 @@ confirms the assignment lands on the right shift.
 
 ## Resolved (recent)
 
+### ✅ Phase 7 — Manager required at BEO-creation time blocked event entry
+**Symptom:** A BEO couldn't be saved without an assigned manager because
+both the form `<select required>` and `POST /api/beos` enforced
+`managerId`. Coordinators entering future BEOs often don't yet know who
+will run the event.
+**Fix:** `managerId` removed from `REQUIRED_FIELDS` on `POST /api/beos`
+(empty string normalised to `null`); the form `<select>` lost `required`
+and the label was reworded to "optional — assign from board". A new
+`PUT /api/beos/[id]/manager` endpoint handles board-side assignment.
+
+### ✅ Phase 7 — Schedule board limited to weeks with a stored Schedule row
+**Symptom:** Browsing to `/schedule/board?week=2026-05-21` returned "No
+schedule found" unless someone had already pressed Generate Schedule for
+that week. Previous/Next arrows hit the same dead-end and BEOs sitting in
+the DB for those weeks were invisible.
+**Fix:** the board page now anchors the requested date to its operational
+Thursday via `startOfOperationalWeek`, calls `ensureWeeklySchedule` to
+materialise a Schedule row on demand, then runs `syncBeoShifts` on every
+BEO whose `eventDate` lands in that Thursday → Wednesday window. Result:
+any week of the year is navigable and any DB-stored BEO auto-appears.
+
 ### ✅ Phase 6 — `/schedule/generate` 500 with empty JSON body
 **Symptom:** `POST /api/schedule/run` returned a 500 with no body, causing
 `form.tsx` to crash with `Unexpected end of JSON input` at the `await

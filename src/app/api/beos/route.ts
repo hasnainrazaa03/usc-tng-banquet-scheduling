@@ -12,11 +12,9 @@ export async function GET() {
   return NextResponse.json(beos);
 }
 
-// Phase 5.1 required-field policy. Optional fields (contactName, contactEmail,
-// contactPhone, onsiteContact, cateringManager, menu, av, setupNotes,
-// specialInstructions, miscNotes, handwrittenChanges) are intentionally NOT
-// in this list — they're nice-to-have for ops but the BEO is still valid
-// without them.
+// Phase 5.1 / 7 required-field policy. The manager is intentionally NOT in
+// this list anymore: a BEO can be created without a manager and assigned
+// from the schedule board later via /api/beos/[id]/manager.
 const REQUIRED_FIELDS: ReadonlyArray<{ key: string; label: string }> = [
   { key: "beoNumber", label: "BEO number" },
   { key: "postAs", label: "Event name" },
@@ -26,7 +24,6 @@ const REQUIRED_FIELDS: ReadonlyArray<{ key: string; label: string }> = [
   { key: "startTime", label: "Start time" },
   { key: "endTime", label: "End time" },
   { key: "expectedGuests", label: "Guest count" },
-  { key: "managerId", label: "Manager" },
 ];
 
 function isBlank(v: unknown): boolean {
@@ -69,7 +66,10 @@ export async function POST(req: NextRequest) {
     }
   }
   const roomId: string | null = body.roomId ?? null;
-  const managerId: string = body.managerId;
+  // Manager is optional at creation time — left null until a manager is
+  // dragged onto this BEO from the schedule board.
+  const rawManagerId = typeof body.managerId === "string" ? body.managerId.trim() : "";
+  const managerId: string | null = rawManagerId === "" ? null : rawManagerId;
 
   // ── Times ──
   const day = new Date(body.eventDate + "T00:00:00");

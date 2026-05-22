@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 7 — Manager drag-and-drop on the schedule board.** Managers no longer have to be chosen at BEO-creation time; they're assigned (and reassigned, and cleared) from the board itself.
+  - New floating **Managers** drawer on the board (right-edge, non-modal, same pattern as Servers). Search by name, filter by role.
+  - Every shift card whose event is backed by a BEO now exposes a **manager drop zone** under the staffing header. Dashed placeholder when empty, a draggable chip when filled. The chip has an X to clear.
+  - `POST` is replaced by drag: drag a manager pill from the drawer (or an existing chip from another card) onto a BEO's manager slot.
+  - Backed by `PUT /api/beos/{id}/manager` — accepts `{ managerId: string|null }`, validates the target user is active and role MANAGER/ADMIN, writes a `BEO_MANAGER_ASSIGN` / `BEO_MANAGER_UNASSIGN` audit log entry.
+- **Phase 7 — Any-week navigation on the schedule board.** The board now materialises whichever operational week the user is looking at instead of requiring a pre-generated `Schedule` row. `WeekNavigator`'s prev/next arrows and the date jumper work for arbitrary weeks of the year.
+- **Phase 7 — BEO auto-visibility.** When the board loads a week, every BEO whose `eventDate` falls in that Thursday → Wednesday window is run through `syncBeoShifts` (idempotent), so a BEO created without ever pressing "Generate Schedule" still appears on the board for its week.
+
+### Changed
+- **`POST /api/beos` — manager is now optional.** `managerId` removed from `REQUIRED_FIELDS`; empty string is normalised to `null` so a BEO can be saved without a manager and assigned later from the board.
+- **BEO form (`/beos/new`)** — the Manager dropdown is no longer `required` and is labelled as optional with a hint that assignment can happen from the schedule board.
+- **`/schedule/board` page resolution** — when neither `?id` nor a known `?week=YYYY-MM-DD` resolves to a stored schedule, the page now calls `ensureWeeklySchedule(anchorThursday)` and proceeds, instead of bailing out with "No schedule found".
+
+### Added
 - **BEO-driven scheduling** — `src/lib/beo-sync.ts` is the single source of truth that, given a BEO, ensures the operational-week `Schedule` exists and has the matching `Event` + `Shift`(s) + role requirements. Called automatically from both `POST /api/beos` (so a newly-created BEO appears on the board immediately) and `POST /api/schedule/run` (bulk sync at week-generation time). Pre/post-event padding (60 min pre, 30 min post) is applied to shift windows so servers arrive early and stay for breakdown.
 - **Call-out / sick / no-show workflow** — new `ShiftAssignment` columns `calledOut`, `calledOutReason`, `calledOutAt`, `calledOutBy`. Manager hits the red user-minus icon on an assignment chip → confirmation modal records the reason → `PATCH /api/schedule/callout` flips the flag → `POST /api/schedule/replace` returns the top eligible replacements (same rules as the auto-scheduler, no auto-assign) → manager picks one and the standard `/api/schedule/assign` endpoint records the replacement. Original assignment stays on record for audit. Manager-controlled first, AI-assisted second.
 - **Shift cards now show manager + guest count** — board query now eagerly loads `event.beo.{manager, location, room, expectedGuests}` so each shift card surfaces the event's manager name, guest count, and venue inline.

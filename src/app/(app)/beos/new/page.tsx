@@ -423,18 +423,20 @@ function FormTab({
             </select>
           </div>
           <div className="col-span-2">
-            <label className="label">Manager <Req /></label>
+            <label className="label">Manager</label>
             <select
               className="input"
               value={form.managerId}
               onChange={(e) => up("managerId", e.target.value)}
-              required
             >
-              <option value="">— Assign a manager —</option>
+              <option value="">— Assign later from the schedule board —</option>
               {options?.managers.map((m) => (
                 <option key={m.id} value={m.id}>{m.name} ({m.email})</option>
               ))}
             </select>
+            <p className="text-[11px] text-ink-muted mt-1">
+              Optional. Managers can be dragged onto this BEO from the schedule board after it&apos;s created.
+            </p>
           </div>
         </div>
       </fieldset>

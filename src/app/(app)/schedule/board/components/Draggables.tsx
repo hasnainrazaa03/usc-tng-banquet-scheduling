@@ -1,7 +1,7 @@
 "use client";
 import { useDraggable } from "@dnd-kit/core";
-import { Lock, Unlock, X, UserMinus } from "lucide-react";
-import type { Assignment, Server } from "../types";
+import { Lock, Unlock, X, UserMinus, UserCircle2 } from "lucide-react";
+import type { Assignment, Manager, Server } from "../types";
 
 /** Server pill draggable from the sidebar / roster. */
 export function DraggableServer({
@@ -137,6 +137,106 @@ export function AssignmentChip({
           <X className="h-2.5 w-2.5" />
         </button>
       </span>
+    </div>
+  );
+}
+
+/**
+ * Manager pill draggable from the managers drawer.
+ *
+ * Drag id: `manager:{userId}`. Drop target is a `beo-mgr:{beoId}` zone on
+ * any shift card. The drop handler in `board.tsx` resolves the target BEO
+ * and PUTs to `/api/beos/{beoId}/manager`.
+ */
+export function DraggableManager({
+  manager,
+  compact = false,
+}: {
+  manager: Manager;
+  compact?: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `manager:${manager.id}`,
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={`
+        group rounded-lg border bg-white px-3 py-2 cursor-grab active:cursor-grabbing
+        hover:border-cardinal hover:bg-cardinal/[0.03] hover:shadow-sm
+        transition-all
+        ${isDragging ? "opacity-40 ring-2 ring-cardinal" : "border-ink/10"}
+        ${compact ? "py-1.5 px-2.5" : ""}
+      `}
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        <UserCircle2 className="h-4 w-4 text-cardinal shrink-0" />
+        <div className="min-w-0 flex-1">
+          <div className="font-medium text-sm leading-tight truncate">
+            {manager.name}
+          </div>
+          {!compact && (
+            <div className="text-[10px] text-ink-muted truncate">
+              {manager.email}
+            </div>
+          )}
+        </div>
+        <span className="font-mono text-[9px] text-ink-muted uppercase shrink-0">
+          {manager.role}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Chip rendered inside a shift card showing the currently-assigned manager
+ * for the underlying BEO. Draggable to another BEO's manager slot (drag id
+ * `manager:{userId}`, exactly the same as the drawer chip so re-assignment
+ * goes through the same code path). Clicking the X clears the manager.
+ */
+export function ManagerChip({
+  beoId,
+  manager,
+  onClear,
+}: {
+  beoId: string;
+  manager: { id: string; name: string };
+  onClear: (beoId: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `manager:${manager.id}`,
+  });
+  return (
+    <div
+      className={`
+        group flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px]
+        bg-cardinal-50 border border-cardinal-200 text-cardinal-900
+        ${isDragging ? "opacity-40" : ""}
+      `}
+      title={`Manager: ${manager.name}`}
+    >
+      <UserCircle2 className="h-3 w-3 shrink-0" />
+      <span
+        ref={setNodeRef}
+        {...attributes}
+        {...listeners}
+        className="truncate font-medium flex-1 cursor-grab active:cursor-grabbing select-none"
+      >
+        {manager.name}
+      </span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onClear(beoId);
+        }}
+        title="Clear manager"
+        className="opacity-0 group-hover:opacity-100 hover:opacity-70 transition"
+      >
+        <X className="h-2.5 w-2.5" />
+      </button>
     </div>
   );
 }

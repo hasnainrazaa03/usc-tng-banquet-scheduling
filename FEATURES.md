@@ -59,6 +59,9 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | ✅ | Multi-event-per-day server assignments (only blocks on real time overlap / availability / hour rules) | `src/lib/scheduling-engine.ts` | Phase 6 |
 | ✅ | Call-out / sick / no-show workflow with manager-confirmed replacements (AI-assisted second) | `src/app/api/schedule/callout/route.ts`, `src/app/api/schedule/replace/route.ts`, `src/app/(app)/schedule/board/components/CalloutModal.tsx` | Phase 6 |
 | ✅ | Manual override above required count shown with amber `↑` on shift card | `src/app/(app)/schedule/board/components/ShiftCard.tsx` | Phase 6 |
+| ✅ | Manager drag-and-drop on the board (drawer + per-BEO drop zone + chip-to-clear) | `src/app/(app)/schedule/board/components/ManagersDrawer.tsx`, `Draggables.tsx`, `ShiftCard.tsx`, `board.tsx`, `src/app/api/beos/[id]/manager/route.ts` | Phase 7 |
+| ✅ | Any-week navigation — board materialises Schedule on demand for arbitrary Thursday→Wednesday windows | `src/app/(app)/schedule/board/page.tsx`, `src/lib/beo-sync.ts` | Phase 7 |
+| ✅ | BEO auto-visibility — any BEO in the DB for the visible week appears without a pre-existing Schedule row | `src/app/(app)/schedule/board/page.tsx`, `src/lib/beo-sync.ts` | Phase 7 |
 | 🚧 | Auto-assignment engine wiring (plugins → real assignments) | `src/lib/scheduling/engine.ts` | — |
 | 🧭 | ML / historical-learning hooks (read past schedules for preference signals) | — | — |
 
@@ -71,7 +74,7 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | ✅ | Tabbed BEO entry: Form / Text / PDF / PNG with local AI parser | `src/app/(app)/beos/new/page.tsx`, `src/lib/ai.ts`, `src/lib/import/parse-files-client.ts` | Phase 5 |
 | ✅ | BEO ↔ Manager FK (`User.managedBEOs`) + Room FK (`Room.beos`) | `prisma/schema.prisma` | Phase 5.1 |
 | ✅ | DB-linked Venue / Room / Manager dropdowns on `/beos/new` (via `/api/options`) | `src/app/api/options/route.ts`, `src/app/(app)/beos/new/page.tsx` | Phase 5.1 |
-| ✅ | Required-field policy enforced client + server (BEO#, Event, Booking ID, Date, Venue, Times, Guests, Manager) | `src/app/api/beos/route.ts` | Phase 5.1 |
+| ✅ | Required-field policy enforced client + server (BEO#, Event, Booking ID, Date, Venue, Times, Guests). Manager optional from Phase 7 — assigned later from the board. | `src/app/api/beos/route.ts` | Phase 5.1 / 7 |
 | 🚧 | Handwritten-changes annotation pipeline | `src/lib/import/staging.ts` | — |
 | ✅ | One-click BEO → Schedule shift generator (auto-sync on BEO create + bulk on Run) | `src/lib/beo-sync.ts`, `src/app/api/beos/route.ts`, `src/app/api/schedule/run/route.ts` | Phase 6 |
 | ✅ | Shift card surfaces event manager + guest count + venue inline | `src/app/(app)/schedule/board/components/ShiftCard.tsx` | Phase 6 |

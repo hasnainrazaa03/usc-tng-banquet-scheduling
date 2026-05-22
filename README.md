@@ -27,6 +27,8 @@ printable weekly roster that matches the operational paper format.
 - **AI-assisted scheduling engine** ([src/lib/scheduling-engine.ts](src/lib/scheduling-engine.ts)) — filters by availability/time-off/qualifications, applies seniority preference, fairness tiebreakers, weekly hour cap, min-rest, no double-booking. Records explainable reasons on every assignment.
 - **Auto-schedule + manual editing** — generate, lock assignments, fill unassigned only, manual override
 - **Drag-and-drop schedule board** with sidebar of available servers, role-by-role drop slots, conflict detection, lock/unlock per assignment
+- **Manager drag-and-drop on the board (Phase 7)** — managers are no longer required at BEO-creation time. Coordinators save a BEO without one and assign later by dragging a manager pill from the new Managers drawer onto the BEO's manager slot on any shift card. Chips can be dragged between BEOs to reassign or X'd out to clear.
+- **Any-week navigation (Phase 7)** — the board page materialises a Thursday→Wednesday `Schedule` row on demand for whatever week the user is viewing, and auto-syncs every BEO in the DB whose `eventDate` lands in that window. Result: previous/next-week arrows work for every week of the year and BEOs already stored in the DB appear without anyone pressing "Generate Schedule" first.
 - **Printable weekly schedule** — servers down rows, days across columns, color-coded role/status cells, USC Cardinal header, revision date, meal-break reminder, status legend
 - **Role-based access** — Admin, Manager, Supervisor, Employee
 - **Audit log** for every schedule change, BEO update, master data save

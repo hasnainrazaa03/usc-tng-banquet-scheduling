@@ -23,6 +23,7 @@ import Link from "next/link";
 import { ShiftCard } from "./components/ShiftCard";
 import { RosterGrid } from "./components/RosterGrid";
 import { ServersDrawer } from "./components/ServersDrawer";
+import { ManagersDrawer } from "./components/ManagersDrawer";
 import { WeekNavigator } from "./components/WeekNavigator";
 import { CalloutModal } from "./components/CalloutModal";
 import { DOW, dayKey, type BoardData, type Shift, type Assignment } from "./types";
@@ -67,6 +68,7 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
   const [view, setView] = useState<View>("day");
   const [density, setDensity] = useState<Density>("comfortable");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [managersDrawerOpen, setManagersDrawerOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -183,12 +185,63 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
     setActiveId(String(e.active.id));
   }
 
+  async function persistSetBeoManager(beoId: string, managerId: string | null) {
+    const res = await fetch(`/api/beos/${beoId}/manager`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ managerId }),
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      alert(j.error ?? "Failed to update manager");
+      router.refresh();
+      return null;
+    }
+    return res.json();
+  }
+
+  /**
+   * Optimistically update every shift whose event references the given BEO
+   * so the new (or cleared) manager shows immediately on each card without
+   * waiting on a full router refresh.
+   */
+  function applyManagerLocal(beoId: string, manager: { id: string; name: string } | null) {
+    setShifts((prev) =>
+      prev.map((sh) => {
+        if (!sh.event?.beo || sh.event.beo.id !== beoId) return sh;
+        return {
+          ...sh,
+          event: { ...sh.event, beo: { ...sh.event.beo, manager } },
+        };
+      }),
+    );
+  }
+
   async function onDragEnd(e: DragEndEvent) {
     setActiveId(null);
     const { active, over } = e;
     if (!over) return;
     const dragId = String(active.id);
     const overId = String(over.id);
+
+    // BEO manager drop zone — accepts both `manager:{id}` (from drawer) and
+    // `manager:{id}` re-emitted by a chip on another shift card.
+    if (overId.startsWith("beo-mgr:")) {
+      const beoId = overId.slice("beo-mgr:".length);
+      let managerId: string | null = null;
+      if (dragId.startsWith("manager:")) {
+        managerId = dragId.slice("manager:".length);
+      } else {
+        return;
+      }
+      const candidate = data.managers.find((m) => m.id === managerId);
+      if (!candidate) return;
+      applyManagerLocal(beoId, { id: candidate.id, name: candidate.name });
+      const res = await persistSetBeoManager(beoId, managerId);
+      if (!res) return;
+      return;
+    }
+
     if (!overId.startsWith("shift:")) return;
     const [, shiftId, roleCode] = overId.split(":");
 
@@ -252,6 +305,10 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
       );
     }
   };
+  const onClearManager = async (beoId: string) => {
+    applyManagerLocal(beoId, null);
+    await persistSetBeoManager(beoId, null);
+  };
   const onToggleLock = async (aid: string, locked: boolean) => {
     await toggleLockReq(aid, locked);
     setShifts((prev) =>
@@ -266,6 +323,9 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
 
   const activeServer = activeId?.startsWith("server:")
     ? data.servers.find((s) => s.id === activeId.replace("server:", ""))
+    : null;
+  const activeManager = activeId?.startsWith("manager:")
+    ? data.managers.find((m) => m.id === activeId.replace("manager:", ""))
     : null;
   // When moving an existing assignment, show the assignee's name in the drag
   // overlay so the user always sees what's flying under the cursor.
@@ -311,7 +371,7 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
   return (
     <div
       className="space-y-4 transition-[padding] duration-200"
-      style={{ paddingRight: drawerOpen ? 348 : 0 }}
+      style={{ paddingRight: drawerOpen || managersDrawerOpen ? 348 : 0 }}
     >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
@@ -424,6 +484,14 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
             <Users className="h-3.5 w-3.5" />
             Servers
           </button>
+          <button
+            onClick={() => setManagersDrawerOpen(true)}
+            className="btn-outline !px-3 !py-1.5 text-xs"
+            title="Open available managers panel"
+          >
+            <Users className="h-3.5 w-3.5" />
+            Managers
+          </button>
         </div>
       </div>
 
@@ -486,6 +554,7 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
                               onRemove={onRemove}
                               onToggleLock={onToggleLock}
                               onCallout={openCallout}
+                              onClearManager={onClearManager}
                               conflictIds={conflictIds}
                             />
                           ))
@@ -518,6 +587,12 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
           density={density}
         />
 
+        <ManagersDrawer
+          managers={data.managers}
+          open={managersDrawerOpen}
+          onClose={() => setManagersDrawerOpen(false)}
+        />
+
         <DragOverlay>
           {activeServer && (
             <div className="bg-cardinal text-white rounded-lg px-3 py-2 text-sm shadow-lg ring-2 ring-cardinal/30">
@@ -534,6 +609,12 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
               <span className="font-medium">
                 {activeAssignment.server.lastName}, {activeAssignment.server.firstName[0]}.
               </span>
+            </div>
+          )}
+          {activeManager && (
+            <div className="bg-cardinal text-white rounded-lg px-3 py-2 text-sm shadow-lg ring-2 ring-cardinal/30">
+              <div className="font-medium leading-tight">{activeManager.name}</div>
+              <div className="text-[10px] opacity-80 uppercase">{activeManager.role}</div>
             </div>
           )}
         </DragOverlay>

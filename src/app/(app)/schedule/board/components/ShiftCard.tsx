@@ -1,8 +1,51 @@
 "use client";
 import { useDroppable } from "@dnd-kit/core";
 import { UserCircle2 } from "lucide-react";
-import { AssignmentChip } from "./Draggables";
+import { AssignmentChip, ManagerChip } from "./Draggables";
 import { ROLE_COLORS, STATUS_COLORS, fmtTime, type Assignment, type Shift } from "../types";
+
+/**
+ * Drop zone on a shift card that accepts a manager drag (id `manager:*`).
+ * Renders the assigned manager as a chip (draggable to another BEO) or a
+ * dashed placeholder inviting the user to drop one. The card's underlying
+ * BEO id is encoded in the droppable id so the drop handler can address
+ * the correct BEO directly.
+ */
+export function ManagerSlot({
+  beoId,
+  manager,
+  onClearManager,
+}: {
+  beoId: string;
+  manager: { id: string; name: string } | null;
+  onClearManager?: (beoId: string) => void;
+}) {
+  const { isOver, setNodeRef } = useDroppable({ id: `beo-mgr:${beoId}` });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`
+        mt-1 rounded-md border px-1.5 py-0.5 transition-all
+        ${isOver ? "border-cardinal bg-cardinal/10 ring-2 ring-cardinal/30" : ""}
+        ${!isOver && manager ? "border-cardinal-200/60 bg-cardinal-50/40" : ""}
+        ${!isOver && !manager ? "border-dashed border-ink/20 bg-canvas-soft/40" : ""}
+      `}
+    >
+      {manager ? (
+        <ManagerChip
+          beoId={beoId}
+          manager={manager}
+          onClear={onClearManager ?? (() => {})}
+        />
+      ) : (
+        <div className="flex items-center gap-1 text-[10px] text-ink-muted italic">
+          <UserCircle2 className="h-3 w-3" />
+          <span>Drop manager here</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * A single role slot inside a shift (e.g. CAP 0/2). Renders the assigned
@@ -77,12 +120,14 @@ export function ShiftCard({
   onRemove,
   onToggleLock,
   onCallout,
+  onClearManager,
   conflictIds,
 }: {
   shift: Shift;
   onRemove: (id: string) => void;
   onToggleLock: (id: string, locked: boolean) => void;
   onCallout?: (a: Assignment) => void;
+  onClearManager?: (beoId: string) => void;
   conflictIds: Set<string>;
 }) {
   if (shift.statusCode !== "NONE") {
@@ -108,7 +153,8 @@ export function ShiftCard({
   const isOverfilled = totalAssigned > totalReq;
 
   const guests = shift.event?.beo?.expectedGuests ?? shift.event?.guests ?? null;
-  const managerName = shift.event?.beo?.manager?.name ?? null;
+  const beoId = shift.event?.beo?.id ?? null;
+  const manager = shift.event?.beo?.manager ?? null;
 
   return (
     <div className={`rounded-lg border bg-white overflow-hidden ${isUnderfilled ? "border-red-200" : isOverfilled ? "border-amber-300" : "border-ink/15"}`}>
@@ -137,11 +183,12 @@ export function ShiftCard({
             <span className="text-ink-muted font-mono">{guests} guests</span>
           )}
         </div>
-        {managerName && (
-          <div className="flex items-center gap-1 text-[10px] text-ink-muted mt-0.5">
-            <UserCircle2 className="h-3 w-3" />
-            <span className="truncate">Mgr: {managerName}</span>
-          </div>
+        {beoId && (
+          <ManagerSlot
+            beoId={beoId}
+            manager={manager}
+            onClearManager={onClearManager}
+          />
         )}
       </div>
       <div className="p-1.5 space-y-1">

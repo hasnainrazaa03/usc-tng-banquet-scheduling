@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import ScheduleBoard from "./board";
 import { startOfOperationalWeek, endOfOperationalWeek } from "@/lib/week-config";
+import { ensureWeeklySchedule, syncBeoShifts } from "@/lib/beo-sync";
 
 export const dynamic = "force-dynamic";
 
@@ -9,45 +10,63 @@ export default async function ScheduleBoardPage({
 }: {
   searchParams: { id?: string; week?: string };
 }) {
-  // Three ways to resolve the active schedule:
-  //   1. ?id=<scheduleId>  → load that schedule directly
-  //   2. ?week=YYYY-MM-DD  → load the schedule whose week contains that date
-  //   3. neither           → most recent schedule
+  // Resolve which operational week the user is looking at.
+  //
+  //   1. ?id=<scheduleId>  → load that schedule directly (anchored to its weekStart)
+  //   2. ?week=YYYY-MM-DD  → anchor to the Thursday of that week
+  //   3. neither           → anchor to the current operational week
+  //
+  // Phase 7 change: we no longer fall back to "the most recent schedule" or
+  // bail out with "No schedule found". Instead the board makes the requested
+  // week real on demand — it materialises a Schedule row for it (Thursday
+  // 00:00 → Wednesday 23:59) and then syncs any BEOs whose eventDate lands
+  // in that window into Shifts. This means every week of the year is
+  // navigable and every BEO already in the DB shows up automatically.
+  let anchorDate: Date = startOfOperationalWeek(new Date());
   let schedule = null as Awaited<ReturnType<typeof prisma.schedule.findFirst>>;
+
   if (searchParams.id) {
     schedule = await prisma.schedule.findUnique({ where: { id: searchParams.id } });
-  } else if (searchParams.week) {
-    const target = new Date(searchParams.week);
-    if (!isNaN(target.getTime())) {
-      const ws = startOfOperationalWeek(target);
-      const we = endOfOperationalWeek(target);
-      schedule = await prisma.schedule.findFirst({
-        where: { weekStart: { gte: ws, lte: we } },
-        orderBy: { weekStart: "desc" },
-      });
-    }
-  }
-  if (!schedule) {
-    schedule = await prisma.schedule.findFirst({ orderBy: { weekStart: "desc" } });
+    if (schedule) anchorDate = startOfOperationalWeek(schedule.weekStart);
   }
 
-  // Sibling schedules for the week-picker dropdown — all known weeks, newest first.
+  if (!schedule) {
+    if (searchParams.week) {
+      const parsed = new Date(searchParams.week);
+      if (!isNaN(parsed.getTime())) {
+        anchorDate = startOfOperationalWeek(parsed);
+      }
+    }
+    schedule = await ensureWeeklySchedule(anchorDate);
+  }
+
+  const ws = startOfOperationalWeek(schedule.weekStart);
+  const we = endOfOperationalWeek(schedule.weekStart);
+
+  // Sync every BEO that lands in this operational week so the board is
+  // BEO-driven: if it's in the DB, it appears on the board. `syncBeoShifts`
+  // is idempotent — already-synced BEOs are no-ops.
+  const beosInWeek = await prisma.bEO.findMany({
+    where: { eventDate: { gte: ws, lte: we } },
+    select: { id: true },
+  });
+  for (const b of beosInWeek) {
+    try {
+      await syncBeoShifts(b.id);
+    } catch (err) {
+      console.error(`[board] syncBeoShifts(${b.id}) failed`, err);
+    }
+  }
+
+  // Sibling schedules for the week-picker dropdown — every known schedule,
+  // newest first, so jumps from the picker still work for arbitrary weeks.
   const siblingSchedules = await prisma.schedule.findMany({
     orderBy: { weekStart: "desc" },
     select: { id: true, name: true, weekStart: true, weekEnd: true, status: true },
-    take: 52,
+    take: 104,
   });
 
-  if (!schedule) {
-    return (
-      <div className="card p-8 text-center">
-        <h1 className="text-2xl font-display mb-2">No schedule found</h1>
-        <p className="text-ink-muted">Generate one first from the Generate Schedule page.</p>
-      </div>
-    );
-  }
-
-  const [shifts, servers] = await Promise.all([
+  const [shifts, servers, managers] = await Promise.all([
     prisma.shift.findMany({
       where: { scheduleId: schedule.id },
       orderBy: [{ date: "asc" }, { startsAt: "asc" }],
@@ -75,9 +94,16 @@ export default async function ScheduleBoardPage({
       orderBy: [{ seniority: { seniorityRank: "asc" } }],
       include: { seniority: true, qualifications: { include: { qualification: true } } },
     }),
+    prisma.user.findMany({
+      where: { active: true, role: { in: ["MANAGER", "ADMIN"] } },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, email: true, role: true },
+    }),
   ]);
 
   // Serialize Date instances for the client island.
-  const serialized = JSON.parse(JSON.stringify({ schedule, shifts, servers, siblingSchedules }));
+  const serialized = JSON.parse(
+    JSON.stringify({ schedule, shifts, servers, managers, siblingSchedules }),
+  );
   return <ScheduleBoard data={serialized} />;
 }

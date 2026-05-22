@@ -11,6 +11,14 @@ export type Server = {
   qualifications: { qualification: { code: string; name: string } }[];
 };
 
+/** Manager candidate shown in the managers drawer for drag-and-drop. */
+export type Manager = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+};
+
 export type Assignment = {
   id: string;
   serverId: string;
@@ -70,6 +78,7 @@ export type BoardData = {
   schedule: Schedule;
   shifts: Shift[];
   servers: Server[];
+  managers: Manager[];
   siblingSchedules?: SiblingSchedule[];
 };
 
