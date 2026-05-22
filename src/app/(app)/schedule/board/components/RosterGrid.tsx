@@ -99,7 +99,10 @@ export function RosterGrid({
           <tbody>
             {servers.map((s, idx) => (
               <tr key={s.id} className={`${rowH} ${idx % 2 === 0 ? "bg-white" : "bg-canvas-soft/40"}`}>
-                <td className="sticky left-0 z-10 bg-inherit border-r border-ink/10 px-3 py-1.5 align-top">
+                {/* Sticky first column needs an explicit, opaque background
+                    matching the row — `bg-inherit` doesn't reliably inherit
+                    the alternating shade, so cells scroll-bleed through. */}
+                <td className={`sticky left-0 z-10 ${idx % 2 === 0 ? "bg-white" : "bg-[#f5f0eb]"} border-r border-ink/10 px-3 py-1.5 align-top`}>
                   <div className="font-medium text-sm leading-tight">{s.lastName}, {s.firstName}</div>
                   <div className="text-[10px] text-ink-muted flex items-center gap-1.5">
                     <span className="font-mono">#{s.seniority?.seniorityRank ?? "—"}</span>

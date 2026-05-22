@@ -261,6 +261,13 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
   const activeServer = activeId?.startsWith("server:")
     ? data.servers.find((s) => s.id === activeId.replace("server:", ""))
     : null;
+  // When moving an existing assignment, show the assignee's name in the drag
+  // overlay so the user always sees what's flying under the cursor.
+  const activeAssignment = activeId?.startsWith("assignment:")
+    ? shifts
+        .flatMap((sh) => sh.assignments)
+        .find((a) => a.id === activeId.replace("assignment:", ""))
+    : null;
 
   const totalReq = shifts.reduce(
     (s, sh) => s + sh.requirements.reduce((x, r) => x + r.count, 0),
@@ -489,6 +496,13 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
               <div className="text-[10px] opacity-80">
                 #{activeServer.seniority?.seniorityRank ?? "—"}
               </div>
+            </div>
+          )}
+          {activeAssignment && (
+            <div className="bg-cardinal text-white rounded-md px-2 py-1 text-[11px] shadow-lg ring-2 ring-cardinal/30">
+              <span className="font-medium">
+                {activeAssignment.server.lastName}, {activeAssignment.server.firstName[0]}.
+              </span>
             </div>
           )}
         </DragOverlay>

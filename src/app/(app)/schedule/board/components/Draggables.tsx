@@ -70,7 +70,7 @@ export function AssignmentChip({
     <div
       ref={setNodeRef}
       className={`
-        group flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] cursor-grab
+        group flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px]
         transition-colors
         ${a.locked ? "bg-cardinal text-white" : "bg-white border"}
         ${conflict ? "ring-2 ring-red-500 border-red-300" : a.locked ? "" : "border-ink/15"}
@@ -81,7 +81,14 @@ export function AssignmentChip({
       {a.locked ? (
         <Lock className="h-2.5 w-2.5 shrink-0 opacity-80" />
       ) : null}
-      <span {...attributes} {...listeners} className="truncate font-medium flex-1">
+      {/* Drag handle: only this span has pointer listeners, so the Lock/Remove
+          buttons stay normally clickable and the chip's cursor only changes
+          when actually hovering the grabbable area. */}
+      <span
+        {...attributes}
+        {...listeners}
+        className="truncate font-medium flex-1 cursor-grab active:cursor-grabbing select-none"
+      >
         {a.server.lastName}, {a.server.firstName[0]}.
       </span>
       <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
