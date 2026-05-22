@@ -73,6 +73,19 @@ npm install
 npm run setup         # = prisma generate + db push + seed
 ```
 
+#### Optional: load synthetic test data
+```bash
+npm run db:seed:test  # 12 synthetic BEOs across next 14 days + availability + time-off
+```
+
+This idempotent script (`prisma/seed-test-data.ts`) is safe to re-run. It
+normalises every active server's classification to `BANQUET_SERVER`, wipes
+any prior synthetic BEOs (tagged `[synthetic-test-data]` in `miscNotes`),
+and regenerates a realistic two-week dataset with manager FKs, varied
+venues, availability windows, and a small mix of approved + pending
+time-off requests so the auto-scheduler exercises conflict / fairness
+logic on real data.
+
 ### 4. Run the app
 ```bash
 npm run dev

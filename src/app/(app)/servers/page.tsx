@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { fmtDate } from "@/lib/utils";
+import { fmtHireDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +42,7 @@ export default async function ServersPage() {
                 </td>
                 <td className="px-4 py-3 font-mono">{s.employeeId}</td>
                 <td className="px-4 py-3"><span className="pill bg-ink/5">{s.classification.replaceAll("_"," ")}</span></td>
-                <td className="px-4 py-3">{fmtDate(s.hireDate)}</td>
+                <td className="px-4 py-3">{fmtHireDate(s.hireDate)}</td>
                 <td className="px-4 py-3">{s.seniority?.yearsOfService.toFixed(1) ?? "—"}</td>
                 <td className="px-4 py-3 font-mono">{s.seniority?.seniorityScore.toFixed(1) ?? "—"}</td>
                 <td className="px-4 py-3">

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { fmtDate } from "@/lib/utils";
+import { fmtDate, fmtHireDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +32,7 @@ export default async function SeniorityPage() {
               <tr key={r.id} className="border-t border-ink/5">
                 <td className="px-4 py-3 font-mono">{i + 1}</td>
                 <td className="px-4 py-3 font-medium">{r.server.lastName}, {r.server.firstName}</td>
-                <td className="px-4 py-3">{fmtDate(r.server.hireDate)}</td>
+                <td className="px-4 py-3">{fmtHireDate(r.server.hireDate)}</td>
                 <td className="px-4 py-3">{r.yearsOfService.toFixed(2)}</td>
                 <td className="px-4 py-3 font-mono">{r.seniorityScore.toFixed(2)}</td>
                 <td className="px-4 py-3">{r.manualAdjustment.toFixed(2)}</td>

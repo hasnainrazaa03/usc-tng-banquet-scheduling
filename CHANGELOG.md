@@ -13,6 +13,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **BEO ↔ Manager relationship** — `BEO.managerId` and `BEO.roomId` are now real FKs (`User`, `Room`) instead of free-text. `User.managedBEOs` / `Room.beos` reverse relations added so managers and rooms can list their own BEOs.
+- **`/api/options` endpoint** — single read-only endpoint returning every venue (Location), its rooms, and every active manager/admin user. Used by the BEO form to power the new dropdowns.
+- **BEO form: dropdown selectors + required-field policy** — `/beos/new`:
+  - **Venue** is now a dropdown of all `Location` rows (DB-linked, no more hardcoded codes).
+  - **Room / sub-venue** is a dependent dropdown that filters to the selected venue's rooms (optional).
+  - **Manager** is a dropdown of every active `MANAGER`/`ADMIN` user (linked via the new FK).
+  - Fields explicitly marked required (asterisk + HTML `required` + 400 on POST): **BEO number, Event name, Booking ID, Date, Venue, Start/End time, Guest count, Manager**.
+  - Optional fields persist into their own columns (contact info, on-site contact, catering manager notes, menu, A/V, special instructions, miscellaneous notes, revised notes, staffing notes).
+- **Synthetic test data** — `prisma/seed-test-data.ts` (`npm run db:seed:test`) generates:
+  - 12 varied BEOs across the next 14 days (different venues, day/night, guest counts 30–320), each linked to a manager FK.
+  - Realistic availability windows for every active server (full-time vs part-time presets so the scheduler has true coverage gaps to solve).
+  - 5 time-off requests (2 approved, 3 pending) so conflict-handling and fairness logic exercise on real data.
+  - All synthetic rows are tagged in `miscNotes` (`[synthetic-test-data]`) so re-runs are safely idempotent.
+- **Scheduler smoke test** — `prisma/scripts/scheduler-smoke.ts` clears assignments and runs `runAutoSchedule` against the current + next operational weeks, printing fill counts and top rejection reasons.
+- **`fmtHireDate` helper** — formats hire dates as `MM/DD/YYYY` (year always shown). Used on the Server Database and Seniority pages.
+
+### Changed
+- **Staff classification normalised to `BANQUET_SERVER`** — `seed-test-data` updates every active `Server.classification` to `BANQUET_SERVER`, replacing prior captain/lead labels. The enum is preserved for historical compatibility; new data treats all staff as Banquet Servers.
+
+### Fixed
+- POST `/api/beos` now persists `menu` / `av` / `specialInstructions` / `miscNotes` / `handwrittenChanges` / `onsiteContact` into their dedicated columns instead of collapsing them into `setupNotes`. Returns 400 with field labels when required fields are missing.
+
+---
+
+## [Phase 5] — 2026-05-21
+
+### Added
 - **BEO import overhaul** — `/beos/new` is now a single tabbed surface with four entry modes:
   - **Form** — manual entry (existing behaviour, expanded fields).
   - **Text** — paste raw BEO text; parser extracts and pre-fills the form.

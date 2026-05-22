@@ -1,47 +1,66 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, FileType, Image as ImageIcon, ClipboardList, Sparkles, Loader2, X } from "lucide-react";
 import { parsePdfFile, parsePngFile } from "@/lib/import/parse-files-client";
 
 type Tab = "form" | "text" | "pdf" | "png";
 
+type RoomOption = { id: string; code: string; name: string };
+type LocationOption = { id: string; code: string; name: string; rooms: RoomOption[] };
+type ManagerOption = { id: string; name: string; email: string; role: string };
+type Options = { locations: LocationOption[]; managers: ManagerOption[] };
+
 type FormState = {
+  // Required
+  beoNumber: string;
   postAs: string;
-  account: string;
   bookingId: string;
   eventDate: string;
+  locationId: string;
   startTime: string;
   endTime: string;
   expectedGuests: number;
-  locationCode: string;
-  setupNotes: string;
-  menu: string;
-  av: string;
-  notes: string;
+  managerId: string;
+  // Optional
+  roomId: string;
+  account: string;
   contactName: string;
   contactEmail: string;
   contactPhone: string;
+  onsiteContact: string;
   cateringManager: string;
+  menu: string;
+  av: string;
+  specialInstructions: string;
+  miscNotes: string;
+  handwrittenChanges: string;
+  setupNotes: string;
 };
 
 const EMPTY: FormState = {
+  beoNumber: "",
   postAs: "",
-  account: "",
   bookingId: "",
   eventDate: new Date().toISOString().slice(0, 10),
+  locationId: "",
   startTime: "17:00",
   endTime: "22:00",
   expectedGuests: 100,
-  locationCode: "TNG",
-  setupNotes: "",
-  menu: "",
-  av: "",
-  notes: "",
+  managerId: "",
+  roomId: "",
+  account: "",
   contactName: "",
   contactEmail: "",
   contactPhone: "",
+  onsiteContact: "",
   cateringManager: "",
+  menu: "",
+  av: "",
+  specialInstructions: "",
+  miscNotes: "",
+  handwrittenChanges: "",
+  setupNotes: "",
 };
 
 export default function BEONewPage() {
@@ -51,33 +70,80 @@ export default function BEONewPage() {
   const [saving, setSaving] = useState(false);
   const [importedFrom, setImportedFrom] = useState<string | null>(null);
   const [importWarning, setImportWarning] = useState<string | null>(null);
+  const [options, setOptions] = useState<Options | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/options")
+      .then((r) => r.json())
+      .then(setOptions)
+      .catch(() => setOptions({ locations: [], managers: [] }));
+  }, []);
 
   function up<K extends keyof FormState>(k: K, v: FormState[K]) {
-    setForm((s) => ({ ...s, [k]: v }));
+    setForm((s) => {
+      // When the user changes the venue, clear the room so we don't leave a
+      // dangling FK from a different venue's room list.
+      if (k === "locationId" && v !== s.locationId) {
+        return { ...s, [k]: v, roomId: "" };
+      }
+      return { ...s, [k]: v };
+    });
   }
 
   /** Merge parser results into the form, keeping existing user edits when
-   *  the parser couldn't find a field. */
+   *  the parser couldn't find a field. Resolves parser-returned venue/room
+   *  codes against the live /api/options lookup. */
   function applyExtracted(extracted: Record<string, unknown>, source: string) {
-    setForm((s) => ({
-      ...s,
-      postAs: (extracted.postAs as string) || s.postAs,
-      account: (extracted.account as string) || s.account,
-      bookingId: (extracted.bookingId as string) || s.bookingId,
-      eventDate: (extracted.eventDate as string) || s.eventDate,
-      startTime: (extracted.startTime as string) || s.startTime,
-      endTime: (extracted.endTime as string) || s.endTime,
-      expectedGuests: (extracted.expectedGuests as number) || s.expectedGuests,
-      locationCode: (extracted.venueCode as string) || s.locationCode,
-      setupNotes: (extracted.setupNotes as string) || s.setupNotes,
-      menu: (extracted.menu as string) || s.menu,
-      av: (extracted.av as string) || s.av,
-      notes: (extracted.notes as string) || s.notes,
-      contactName: (extracted.contactName as string) || s.contactName,
-      contactEmail: (extracted.contactEmail as string) || s.contactEmail,
-      contactPhone: (extracted.contactPhone as string) || s.contactPhone,
-      cateringManager: (extracted.cateringManager as string) || s.cateringManager,
-    }));
+    setForm((s) => {
+      // Resolve venueCode → locationId, and (if any) a room code in the same
+      // location.
+      let locationId = s.locationId;
+      let roomId = s.roomId;
+      const venueCode = (extracted.venueCode as string | undefined)?.trim();
+      if (venueCode && options) {
+        // Direct location code match
+        const locByCode = options.locations.find((l) => l.code === venueCode);
+        if (locByCode) {
+          locationId = locByCode.id;
+          roomId = "";
+        } else {
+          // Maybe it's a room code — find the parent location and set the room
+          for (const loc of options.locations) {
+            const room = loc.rooms.find((r) => r.code === venueCode);
+            if (room) {
+              locationId = loc.id;
+              roomId = room.id;
+              break;
+            }
+          }
+        }
+      }
+      return {
+        ...s,
+        beoNumber: (extracted.beoNumber as string) || (extracted.uepaNumber as string) || s.beoNumber,
+        postAs: (extracted.postAs as string) || s.postAs,
+        account: (extracted.account as string) || s.account,
+        bookingId: (extracted.bookingId as string) || s.bookingId,
+        eventDate: (extracted.eventDate as string) || s.eventDate,
+        startTime: (extracted.startTime as string) || s.startTime,
+        endTime: (extracted.endTime as string) || s.endTime,
+        expectedGuests: (extracted.expectedGuests as number) || s.expectedGuests,
+        locationId,
+        roomId,
+        setupNotes: (extracted.setupNotes as string) || s.setupNotes,
+        menu: (extracted.menu as string) || s.menu,
+        av: (extracted.av as string) || s.av,
+        specialInstructions: (extracted.specialInstructions as string) || (extracted.notes as string) || s.specialInstructions,
+        miscNotes: (extracted.miscNotes as string) || s.miscNotes,
+        handwrittenChanges: (extracted.handwrittenChanges as string) || s.handwrittenChanges,
+        contactName: (extracted.contactName as string) || s.contactName,
+        contactEmail: (extracted.contactEmail as string) || s.contactEmail,
+        contactPhone: (extracted.contactPhone as string) || s.contactPhone,
+        onsiteContact: (extracted.onsiteContact as string) || s.onsiteContact,
+        cateringManager: (extracted.cateringManager as string) || s.cateringManager,
+      };
+    });
     setImportedFrom(source);
     const confidence = typeof extracted.confidence === "number" ? extracted.confidence : 1;
     setImportWarning(
@@ -103,6 +169,7 @@ export default function BEONewPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setSubmitError(null);
     const res = await fetch("/api/beos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -112,6 +179,13 @@ export default function BEONewPage() {
     if (res.ok) {
       const j = await res.json();
       router.push(`/beos/${j.id}`);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setSubmitError(
+        err.missing?.length
+          ? `Missing required field${err.missing.length === 1 ? "" : "s"}: ${err.missing.join(", ")}`
+          : err.error || `Save failed (${res.status})`,
+      );
     }
   }
 
@@ -158,6 +232,8 @@ export default function BEONewPage() {
               importWarning={importWarning}
               onClearImport={clearImport}
               onCancel={() => router.back()}
+              options={options}
+              submitError={submitError}
             />
           )}
           {tab === "text" && <TextTab onParse={(t) => parseText(t, "Text")} />}
@@ -207,6 +283,8 @@ function FormTab({
   importWarning,
   onClearImport,
   onCancel,
+  options,
+  submitError,
 }: {
   form: FormState;
   up: <K extends keyof FormState>(k: K, v: FormState[K]) => void;
@@ -216,7 +294,12 @@ function FormTab({
   importWarning: string | null;
   onClearImport: () => void;
   onCancel: () => void;
+  options: Options | null;
+  submitError: string | null;
 }) {
+  const selectedLocation = options?.locations.find((l) => l.id === form.locationId) ?? null;
+  const roomOptions = selectedLocation?.rooms ?? [];
+
   return (
     <form onSubmit={submit} className="space-y-4">
       {importedFrom && (
@@ -235,77 +318,203 @@ function FormTab({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
-          <label className="label">Post As / Event Name</label>
-          <input className="input" value={form.postAs} onChange={(e) => up("postAs", e.target.value)} required />
+      {submitError && (
+        <div className="rounded-lg border border-cardinal/30 bg-cardinal/10 px-4 py-3 text-sm text-cardinal">
+          {submitError}
         </div>
-        <div>
-          <label className="label">Account / Client</label>
-          <input className="input" value={form.account} onChange={(e) => up("account", e.target.value)} />
+      )}
+
+      <fieldset className="space-y-2">
+        <legend className="text-xs uppercase tracking-wide text-ink-muted font-semibold">
+          Required fields <span className="text-cardinal">*</span>
+        </legend>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">BEO Number <Req /></label>
+            <input
+              className="input"
+              value={form.beoNumber}
+              onChange={(e) => up("beoNumber", e.target.value)}
+              placeholder="BEO-2026-1234"
+              required
+            />
+          </div>
+          <div>
+            <label className="label">Booking ID <Req /></label>
+            <input
+              className="input"
+              value={form.bookingId}
+              onChange={(e) => up("bookingId", e.target.value)}
+              placeholder="BK-2026-1234"
+              required
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="label">Event Name (Post As) <Req /></label>
+            <input className="input" value={form.postAs} onChange={(e) => up("postAs", e.target.value)} required />
+          </div>
+          <div>
+            <label className="label">Event Date <Req /></label>
+            <input
+              className="input"
+              type="date"
+              value={form.eventDate}
+              onChange={(e) => up("eventDate", e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label className="label">Expected Guests <Req /></label>
+            <input
+              className="input"
+              type="number"
+              min={1}
+              value={form.expectedGuests}
+              onChange={(e) => up("expectedGuests", parseInt(e.target.value) || 0)}
+              required
+            />
+          </div>
+          <div>
+            <label className="label">Start Time <Req /></label>
+            <input
+              className="input"
+              type="time"
+              value={form.startTime}
+              onChange={(e) => up("startTime", e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label className="label">End Time <Req /></label>
+            <input
+              className="input"
+              type="time"
+              value={form.endTime}
+              onChange={(e) => up("endTime", e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label className="label">Venue <Req /></label>
+            <select
+              className="input"
+              value={form.locationId}
+              onChange={(e) => up("locationId", e.target.value)}
+              required
+            >
+              <option value="">— Select a venue —</option>
+              {options?.locations.map((l) => (
+                <option key={l.id} value={l.id}>{l.name} ({l.code})</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Room / Sub-venue <span className="text-ink-muted text-xs">(optional)</span></label>
+            <select
+              className="input"
+              value={form.roomId}
+              onChange={(e) => up("roomId", e.target.value)}
+              disabled={!form.locationId}
+            >
+              <option value="">{form.locationId ? "— Any room —" : "Select a venue first"}</option>
+              {roomOptions.map((r) => (
+                <option key={r.id} value={r.id}>{r.name} ({r.code})</option>
+              ))}
+            </select>
+          </div>
+          <div className="col-span-2">
+            <label className="label">Manager <Req /></label>
+            <select
+              className="input"
+              value={form.managerId}
+              onChange={(e) => up("managerId", e.target.value)}
+              required
+            >
+              <option value="">— Assign a manager —</option>
+              {options?.managers.map((m) => (
+                <option key={m.id} value={m.id}>{m.name} ({m.email})</option>
+              ))}
+            </select>
+          </div>
         </div>
-        <div>
-          <label className="label">Booking ID</label>
-          <input className="input" value={form.bookingId} onChange={(e) => up("bookingId", e.target.value)} />
+      </fieldset>
+
+      <fieldset className="space-y-2 pt-2">
+        <legend className="text-xs uppercase tracking-wide text-ink-muted font-semibold">
+          Optional details
+        </legend>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">Account / Client</label>
+            <input className="input" value={form.account} onChange={(e) => up("account", e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Catering Manager (notes)</label>
+            <input className="input" value={form.cateringManager} onChange={(e) => up("cateringManager", e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Contact Name</label>
+            <input className="input" value={form.contactName} onChange={(e) => up("contactName", e.target.value)} />
+          </div>
+          <div>
+            <label className="label">On-Site Contact</label>
+            <input className="input" value={form.onsiteContact} onChange={(e) => up("onsiteContact", e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Contact Email</label>
+            <input className="input" type="email" value={form.contactEmail} onChange={(e) => up("contactEmail", e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Contact Phone</label>
+            <input className="input" value={form.contactPhone} onChange={(e) => up("contactPhone", e.target.value)} />
+          </div>
+          <div className="col-span-2">
+            <label className="label">Menu Details</label>
+            <textarea className="input" rows={3} value={form.menu} onChange={(e) => up("menu", e.target.value)} />
+          </div>
+          <div className="col-span-2">
+            <label className="label">A/V Details</label>
+            <textarea className="input" rows={2} value={form.av} onChange={(e) => up("av", e.target.value)} />
+          </div>
+          <div className="col-span-2">
+            <label className="label">Special Instructions</label>
+            <textarea
+              className="input"
+              rows={2}
+              value={form.specialInstructions}
+              onChange={(e) => up("specialInstructions", e.target.value)}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="label">Miscellaneous Notes</label>
+            <textarea
+              className="input"
+              rows={2}
+              value={form.miscNotes}
+              onChange={(e) => up("miscNotes", e.target.value)}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="label">Revised / Handwritten Changes</label>
+            <textarea
+              className="input"
+              rows={2}
+              value={form.handwrittenChanges}
+              onChange={(e) => up("handwrittenChanges", e.target.value)}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="label">Staffing Notes</label>
+            <textarea
+              className="input"
+              rows={2}
+              value={form.setupNotes}
+              onChange={(e) => up("setupNotes", e.target.value)}
+              placeholder="e.g. 1 server per 25 guests, captain on call for VIP table"
+            />
+          </div>
         </div>
-        <div>
-          <label className="label">Event Date</label>
-          <input className="input" type="date" value={form.eventDate} onChange={(e) => up("eventDate", e.target.value)} required />
-        </div>
-        <div>
-          <label className="label">Venue Code</label>
-          <input className="input" value={form.locationCode} onChange={(e) => up("locationCode", e.target.value)} />
-        </div>
-        <div>
-          <label className="label">Start Time</label>
-          <input className="input" type="time" value={form.startTime} onChange={(e) => up("startTime", e.target.value)} />
-        </div>
-        <div>
-          <label className="label">End Time</label>
-          <input className="input" type="time" value={form.endTime} onChange={(e) => up("endTime", e.target.value)} />
-        </div>
-        <div>
-          <label className="label">Expected Guests</label>
-          <input
-            className="input"
-            type="number"
-            value={form.expectedGuests}
-            onChange={(e) => up("expectedGuests", parseInt(e.target.value) || 0)}
-          />
-        </div>
-        <div>
-          <label className="label">Catering Manager</label>
-          <input className="input" value={form.cateringManager} onChange={(e) => up("cateringManager", e.target.value)} />
-        </div>
-        <div>
-          <label className="label">Contact Name</label>
-          <input className="input" value={form.contactName} onChange={(e) => up("contactName", e.target.value)} />
-        </div>
-        <div>
-          <label className="label">Contact Email</label>
-          <input className="input" type="email" value={form.contactEmail} onChange={(e) => up("contactEmail", e.target.value)} />
-        </div>
-        <div>
-          <label className="label">Contact Phone</label>
-          <input className="input" value={form.contactPhone} onChange={(e) => up("contactPhone", e.target.value)} />
-        </div>
-        <div className="col-span-2">
-          <label className="label">Setup Notes</label>
-          <textarea className="input" rows={3} value={form.setupNotes} onChange={(e) => up("setupNotes", e.target.value)} />
-        </div>
-        <div className="col-span-2">
-          <label className="label">Menu</label>
-          <textarea className="input" rows={3} value={form.menu} onChange={(e) => up("menu", e.target.value)} />
-        </div>
-        <div className="col-span-2">
-          <label className="label">A/V Requirements</label>
-          <textarea className="input" rows={2} value={form.av} onChange={(e) => up("av", e.target.value)} />
-        </div>
-        <div className="col-span-2">
-          <label className="label">Additional Notes</label>
-          <textarea className="input" rows={2} value={form.notes} onChange={(e) => up("notes", e.target.value)} />
-        </div>
-      </div>
+      </fieldset>
 
       <div className="flex justify-end gap-2 pt-2">
         <button type="button" className="btn-ghost" onClick={onCancel}>Cancel</button>
@@ -313,6 +522,10 @@ function FormTab({
       </div>
     </form>
   );
+}
+
+function Req() {
+  return <span className="text-cardinal" title="Required">*</span>;
 }
 
 // ─── Text tab ────────────────────────────────────────────────────────────

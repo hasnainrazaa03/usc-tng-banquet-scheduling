@@ -57,6 +57,23 @@ confirms the assignment lands on the right shift.
 
 ## Resolved (recent)
 
+### ✅ Phase 5.1 — BEO ↔ Manager / Room had no real FK
+**Symptom:** `BEO` only stored `cateringManager` as free text; manager dashboards
+couldn't be scoped to "BEOs I own", and the BEO form's venue/room/manager were
+text inputs with no DB linkage.
+**Fix:** added `BEO.managerId → User` and `BEO.roomId → Room` FKs, plus the
+reverse relations `User.managedBEOs` and `Room.beos`. `/api/options` exposes
+the dropdown data. The new BEO form posts FK ids; `/api/beos` validates the
+Phase 5.1 required-field set (BEO number, Event name, Booking ID, Date, Venue,
+Times, Guest count, Manager) and returns 400 with field labels on missing.
+
+### ✅ Phase 5.1 — Mixed staff classifications complicated scheduling
+**Symptom:** seed shipped a mix of `BANQUET_SERVER` / `BANQUET_CAPTAIN` /
+`LEAD_BANQUET_CAPTAIN` / `BARTENDER` classifications, but operationally
+every active staff member functions as a Banquet Server for shift fill.
+**Fix:** `prisma/seed-test-data.ts` normalises every active `Server.classification`
+to `BANQUET_SERVER`. The enum is preserved for historical compatibility.
+
 ### ✅ v0.4 — DnD drops were silently swallowed when servers drawer was open
 **Symptom:** Dragging a server chip into a shift cell while the drawer was
 visible appeared to succeed but no assignment landed; the grid also looked

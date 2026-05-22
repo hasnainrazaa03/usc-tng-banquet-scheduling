@@ -14,6 +14,16 @@ export function fmtDate(d: Date | string) {
   const x = typeof d === "string" ? new Date(d) : d;
   return x.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
+/**
+ * MM/DD/YYYY — always include the year. Use for things like hire dates
+ * where the year matters for tenure context.
+ */
+export function fmtHireDate(d: Date | string) {
+  const x = typeof d === "string" ? new Date(d) : d;
+  const mm = String(x.getMonth() + 1).padStart(2, "0");
+  const dd = String(x.getDate()).padStart(2, "0");
+  return `${mm}/${dd}/${x.getFullYear()}`;
+}
 export function fmtDay(d: Date | string) {
   const x = typeof d === "string" ? new Date(d) : d;
   return x.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();

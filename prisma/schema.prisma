@@ -34,6 +34,7 @@ model User {
   role          UserRole @default(EMPLOYEE)
   active        Boolean  @default(true)
   server        Server?  @relation("UserServer")
+  managedBEOs   BEO[]    @relation("BEOManager")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   auditLogs     AuditLog[]
@@ -288,6 +289,7 @@ model Room {
   imagePath   String?
   events      Event[]
   spaces      EventSpace[]
+  beos        BEO[]         @relation("BEORoom")
 
   @@unique([locationId, code])
 }
@@ -333,6 +335,16 @@ model BEO {
 
   locationId      String?
   location        Location?    @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  // Optional FK to the specific room/sub-venue used by this event. We keep
+  // locationId for backwards compatibility (some legacy BEOs only know the
+  // parent location); roomId narrows it to a specific space when known.
+  roomId          String?
+  room            Room?        @relation("BEORoom", fields: [roomId], references: [id], onDelete: SetNull)
+  // Manager owning this BEO (User with role MANAGER or ADMIN). Required at
+  // the form layer; nullable in the DB so historical imports without an
+  // owner can still load.
+  managerId       String?
+  manager         User?        @relation("BEOManager", fields: [managerId], references: [id], onDelete: SetNull)
 
   eventDate       DateTime
   startTime       DateTime

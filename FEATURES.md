@@ -64,7 +64,11 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | --- | --- | --- | --- |
 | ✅ | BEO model + sections + events derived per section | `prisma/schema.prisma` | v0.1 |
 | ✅ | BEO detail page renders venue column (renamed from "Room") | `src/app/(app)/beos/[id]/page.tsx` | v0.4 |
-| 🚧 | BEO PDF / handwritten-changes import pipeline | `src/lib/import/staging.ts` | — |
+| ✅ | Tabbed BEO entry: Form / Text / PDF / PNG with local AI parser | `src/app/(app)/beos/new/page.tsx`, `src/lib/ai.ts`, `src/lib/import/parse-files-client.ts` | Phase 5 |
+| ✅ | BEO ↔ Manager FK (`User.managedBEOs`) + Room FK (`Room.beos`) | `prisma/schema.prisma` | Phase 5.1 |
+| ✅ | DB-linked Venue / Room / Manager dropdowns on `/beos/new` (via `/api/options`) | `src/app/api/options/route.ts`, `src/app/(app)/beos/new/page.tsx` | Phase 5.1 |
+| ✅ | Required-field policy enforced client + server (BEO#, Event, Booking ID, Date, Venue, Times, Guests, Manager) | `src/app/api/beos/route.ts` | Phase 5.1 |
+| 🚧 | Handwritten-changes annotation pipeline | `src/lib/import/staging.ts` | — |
 | 🧭 | One-click BEO → Schedule shift generator | — | — |
 
 ## Reporting & print
@@ -81,6 +85,8 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | --- | --- | --- | --- |
 | ✅ | Dockerized PostgreSQL via `colima` | `docker-compose.yml` | v0.1 |
 | ✅ | One-command reseed (`prisma db push --force-reset && db:seed`) | `prisma/seed.ts` | v0.1 |
+| ✅ | Synthetic test-data loader (`npm run db:seed:test`) | `prisma/seed-test-data.ts` | Phase 5.1 |
+| ✅ | Auto-scheduler smoke test script | `prisma/scripts/scheduler-smoke.ts` | Phase 5.1 |
 | ✅ | `FEATURES.md` + `BUGS.md` project-management docs | this file | v0.4 |
 | 🧭 | CI build/test workflow | — | — |
 | 🧭 | E2E tests for board DnD | — | — |
