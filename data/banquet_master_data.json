@@ -1,61 +1,36 @@
 {
   "$schema": "./banquet_master_data.schema.json",
-  "version": 2,
+  "version": 3,
   "department": {
-    "name": "USC Town & Gown / Private Events & Conferences",
-    "shortName": "TNG",
+    "name": "USC Private Events & Conferences",
+    "shortName": "USC PEC",
     "timezone": "America/Los_Angeles",
-    "weekStartsOn": "SUN"
+    "weekStartsOn": "THU"
   },
   "venueGroups": [
     {
       "code": "UPC",
       "name": "University Park Campus",
       "shortName": "UPC",
-      "description": "Main USC campus venues including Town & Gown, Tutor Campus Center, and Pertusati.",
+      "description": "Main USC campus venues including Town & Gown, Vineyard, Moreton Fig, Trojan Grand Ballroom, and the Ronald Tutor Campus Center spaces.",
       "locations": [
         {
-          "code": "TNG",
-          "name": "Town and Gown",
-          "address": "665 W Exposition Blvd, Los Angeles, CA",
+          "code": "UPC-MAIN",
+          "name": "University Park Campus",
+          "address": "Los Angeles, CA",
           "rooms": [
-            { "code": "GBR", "name": "Grand Ballroom", "capacity": 600, "setupTypes": ["BANQUET", "RECEPTION", "THEATER", "CLASSROOM"], "spaces": [
-              { "code": "GBR-FULL", "name": "Full Ballroom", "capacity": 600 },
-              { "code": "GBR-A",    "name": "Ballroom A",   "capacity": 300 },
-              { "code": "GBR-B",    "name": "Ballroom B",   "capacity": 300 }
+            { "code": "TNG",      "name": "Town & Gown", "capacity": 600, "setupTypes": ["BANQUET", "RECEPTION", "THEATER", "CLASSROOM"], "spaces": [
+              { "code": "TNG-GBR-FULL", "name": "Grand Ballroom — Full", "capacity": 600 },
+              { "code": "TNG-GBR-A",    "name": "Grand Ballroom — A",    "capacity": 300 },
+              { "code": "TNG-GBR-B",    "name": "Grand Ballroom — B",    "capacity": 300 },
+              { "code": "TNG-FOY",      "name": "Foyer",                 "capacity": 200 }
             ]},
-            { "code": "FOY", "name": "Foyer", "capacity": 200, "setupTypes": ["RECEPTION", "EXHIBIT"] },
-            { "code": "PVT", "name": "Private Dining", "capacity": 80, "setupTypes": ["BANQUET", "CONFERENCE"] }
+            { "code": "VINEYARD", "name": "Vineyard & Patio",       "capacity": 220, "setupTypes": ["RECEPTION", "BANQUET"] },
+            { "code": "MORETON",  "name": "Moreton Fig Patio",      "capacity": 150, "setupTypes": ["RECEPTION", "BANQUET"] },
+            { "code": "TROJAN",   "name": "Trojan Grand Ballroom",  "capacity": 500, "setupTypes": ["BANQUET", "RECEPTION", "THEATER"] },
+            { "code": "FRANKLIN", "name": "The Franklin Suite at Ronald Tutor Campus Center", "capacity": 80,  "setupTypes": ["CONFERENCE", "U_SHAPE"] },
+            { "code": "FORUM",    "name": "The Forum at Ronald Tutor Campus Center",          "capacity": 250, "setupTypes": ["THEATER", "CLASSROOM"] }
           ]
-        },
-        {
-          "code": "TCC",
-          "name": "Tutor Campus Center",
-          "address": "3607 Trousdale Pkwy, Los Angeles, CA",
-          "rooms": [
-            { "code": "GH", "name": "Grand Hall",  "capacity": 450, "setupTypes": ["BANQUET", "RECEPTION", "THEATER"] },
-            { "code": "FH", "name": "Forum Hall", "capacity": 250, "setupTypes": ["BANQUET", "THEATER", "CLASSROOM"] }
-          ]
-        },
-        {
-          "code": "PED",
-          "name": "Pertusati / Pardee",
-          "address": "USC Campus",
-          "rooms": []
-        }
-      ]
-    },
-    {
-      "code": "U_CLUB",
-      "name": "University Club",
-      "shortName": "U Club",
-      "description": "Members-only private events club on the UPC perimeter.",
-      "locations": [
-        {
-          "code": "UCLUB",
-          "name": "University Club of USC",
-          "address": "Hellman Way, Los Angeles, CA",
-          "rooms": []
         }
       ]
     },
@@ -63,13 +38,32 @@
       "code": "HSC",
       "name": "Health Sciences Campus",
       "shortName": "HSC",
-      "description": "USC Health Sciences Campus venues (Eastlake Avenue).",
+      "description": "USC Health Sciences Campus venues at the Keck School complex.",
       "locations": [
         {
           "code": "HSC-MAIN",
-          "name": "HSC Conference Center",
+          "name": "Health Sciences Campus",
           "address": "1975 Zonal Ave, Los Angeles, CA",
-          "rooms": []
+          "rooms": [
+            { "code": "HSC-CC", "name": "Health Science Conference Center", "capacity": 300, "setupTypes": ["BANQUET", "THEATER", "CLASSROOM", "RECEPTION"] }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "U_CLUB",
+      "name": "University Club",
+      "shortName": "UClub",
+      "description": "Members-only private events club on the UPC perimeter.",
+      "locations": [
+        {
+          "code": "UCLUB-MAIN",
+          "name": "University Club",
+          "address": "Hellman Way, Los Angeles, CA",
+          "rooms": [
+            { "code": "UCLUB",       "name": "University Club",              "capacity": 200, "setupTypes": ["BANQUET", "RECEPTION"] },
+            { "code": "SCRIPTORIUM", "name": "Scriptorium at University Club", "capacity": 60, "setupTypes": ["BANQUET", "CONFERENCE"] }
+          ]
         }
       ]
     },
@@ -80,10 +74,18 @@
       "description": "USC's flagship hotel and conference operation across Figueroa.",
       "locations": [
         {
-          "code": "USCH",
+          "code": "USCH-MAIN",
           "name": "USC Hotel",
           "address": "3540 S Figueroa St, Los Angeles, CA",
-          "rooms": []
+          "rooms": [
+            { "code": "HOTEL-MR",     "name": "USC Hotel Meeting Rooms",        "capacity": 120, "setupTypes": ["CONFERENCE", "CLASSROOM", "U_SHAPE"] },
+            { "code": "HOTEL-GARDEN", "name": "USC Hotel Garden",               "capacity": 200, "setupTypes": ["RECEPTION", "BANQUET"] },
+            { "code": "HOTEL-1880",   "name": "USC Hotel 1880 Founders Room",   "capacity": 50,  "setupTypes": ["CONFERENCE", "U_SHAPE"] },
+            { "code": "HOTEL-GBR",    "name": "USC Hotel Grand Ballroom",       "capacity": 400, "setupTypes": ["BANQUET", "RECEPTION", "THEATER"] },
+            { "code": "MCKAYS",       "name": "McKay's at USC Hotel",           "capacity": 90,  "setupTypes": ["BANQUET", "RECEPTION"] },
+            { "code": "THE-LAB",      "name": "The Lab Gastropub",              "capacity": 110, "setupTypes": ["RECEPTION", "BANQUET"] },
+            { "code": "EDMONDSON",    "name": "The Edmondson",                  "capacity": 80,  "setupTypes": ["BANQUET", "RECEPTION"] }
+          ]
         }
       ]
     }
@@ -91,20 +93,12 @@
 
   "_legacy_locations_kept_for_back_compat": "Flat locations[] is now derived from venueGroups by the importer. Imports of the old shape are still accepted.",
   "locations": [
-    { "code": "TNG", "name": "Town and Gown", "address": "665 W Exposition Blvd, Los Angeles, CA", "venueGroupCode": "UPC" },
-    { "code": "TCC", "name": "Tutor Campus Center", "address": "3607 Trousdale Pkwy, Los Angeles, CA", "venueGroupCode": "UPC" },
-    { "code": "PED", "name": "Pertusati / Pardee", "address": "USC Campus", "venueGroupCode": "UPC" },
-    { "code": "UCLUB", "name": "University Club of USC", "address": "Hellman Way, Los Angeles, CA", "venueGroupCode": "U_CLUB" },
-    { "code": "HSC-MAIN", "name": "HSC Conference Center", "address": "1975 Zonal Ave, Los Angeles, CA", "venueGroupCode": "HSC" },
-    { "code": "USCH", "name": "USC Hotel", "address": "3540 S Figueroa St, Los Angeles, CA", "venueGroupCode": "USC_HOTEL" }
+    { "code": "UPC-MAIN",   "name": "University Park Campus",  "venueGroupCode": "UPC" },
+    { "code": "HSC-MAIN",   "name": "Health Sciences Campus",  "venueGroupCode": "HSC" },
+    { "code": "UCLUB-MAIN", "name": "University Club",         "venueGroupCode": "U_CLUB" },
+    { "code": "USCH-MAIN",  "name": "USC Hotel",               "venueGroupCode": "USC_HOTEL" }
   ],
-  "rooms": [
-    { "locationCode": "TNG", "code": "GBR", "name": "Grand Ballroom", "capacity": 600, "setupTypes": ["BANQUET", "RECEPTION", "THEATER", "CLASSROOM"] },
-    { "locationCode": "TNG", "code": "FOY", "name": "Foyer", "capacity": 200, "setupTypes": ["RECEPTION", "EXHIBIT"] },
-    { "locationCode": "TNG", "code": "PVT", "name": "Private Dining", "capacity": 80, "setupTypes": ["BANQUET", "CONFERENCE"] },
-    { "locationCode": "TCC", "code": "GH",  "name": "Grand Hall", "capacity": 450, "setupTypes": ["BANQUET", "RECEPTION", "THEATER"] },
-    { "locationCode": "TCC", "code": "FH",  "name": "Forum Hall", "capacity": 250, "setupTypes": ["BANQUET", "THEATER", "CLASSROOM"] }
-  ],
+  "rooms": [],
   "eventTypes": [
     "RECEPTION", "BREAKFAST", "BRUNCH", "LUNCH", "DINNER",
     "CONFERENCE", "MEETING", "BREAK", "GALA", "WEDDING",
@@ -192,11 +186,11 @@
     "preferEvenHourDistributionAfterSeniority": true
   },
   "printLayout": {
-    "header": "USC Town & Gown / Private Events & Conferences — Weekly Schedule",
+    "header": "USC Private Events & Conferences — Weekly Schedule",
     "showRevisionDate": true,
     "showMealBreakReminder": true,
     "mealBreakReminderText": "All shifts ≥ 5h require a 30 minute unpaid meal break.",
-    "columns": ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"],
+    "columns": ["THU", "FRI", "SAT", "SUN", "MON", "TUE", "WED"],
     "rowsSortedBy": "seniorityRank"
   },
   "defaultScheduleTemplates": [
@@ -204,37 +198,15 @@
       "code": "STANDARD_WEEK",
       "name": "Standard 7-day week",
       "days": [
+        { "day": "THU", "shifts": ["AM", "MID", "PM"] },
+        { "day": "FRI", "shifts": ["AM", "MID", "PM"] },
+        { "day": "SAT", "shifts": ["AM", "MID", "PM"] },
         { "day": "SUN", "shifts": ["AM", "PM"] },
         { "day": "MON", "shifts": ["AM", "PM"] },
         { "day": "TUE", "shifts": ["AM", "PM"] },
-        { "day": "WED", "shifts": ["AM", "PM"] },
-        { "day": "THU", "shifts": ["AM", "PM"] },
-        { "day": "FRI", "shifts": ["AM", "MID", "PM"] },
-        { "day": "SAT", "shifts": ["AM", "MID", "PM"] }
+        { "day": "WED", "shifts": ["AM", "PM"] }
       ]
     }
   ],
-  "commonPatterns": [
-    {
-      "name": "Donor dinner @ TNG GBR for 200",
-      "match": { "locationCode": "TNG", "roomCode": "GBR", "guestsMin": 150, "guestsMax": 260, "type": "PLATED_DINNER" },
-      "staffing": [
-        { "roleCode": "CAP", "count": 2 },
-        { "roleCode": "SVR", "count": 14 },
-        { "roleCode": "BAR", "count": 3 },
-        { "roleCode": "BBK", "count": 1 },
-        { "roleCode": "HSP", "count": 2 }
-      ]
-    },
-    {
-      "name": "Reception in Foyer for 100",
-      "match": { "locationCode": "TNG", "roomCode": "FOY", "guestsMin": 75, "guestsMax": 150, "type": "RECEPTION" },
-      "staffing": [
-        { "roleCode": "CAP", "count": 1 },
-        { "roleCode": "SVR", "count": 4 },
-        { "roleCode": "BAR", "count": 2 },
-        { "roleCode": "BBK", "count": 1 }
-      ]
-    }
-  ]
+  "commonPatterns": []
 }

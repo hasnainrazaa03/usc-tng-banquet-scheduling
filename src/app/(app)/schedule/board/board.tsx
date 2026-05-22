@@ -280,7 +280,10 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
     density === "compact" ? "min-w-[980px]" : "min-w-[1180px]";
 
   return (
-    <div className="space-y-4">
+    <div
+      className="space-y-4 transition-[padding] duration-200"
+      style={{ paddingRight: drawerOpen ? 348 : 0 }}
+    >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-3xl md:text-4xl font-display tracking-tight truncate">

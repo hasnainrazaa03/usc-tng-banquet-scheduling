@@ -51,6 +51,11 @@ enum EmploymentStatus {
   TERMINATED
 }
 
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+}
+
 enum JobClassification {
   LEAD_BANQUET_CAPTAIN
   BANQUET_CAPTAIN
@@ -75,8 +80,12 @@ model Server {
   hireDate          DateTime
   classification    JobClassification  @default(BANQUET_SERVER)
   status            EmploymentStatus   @default(ACTIVE)
+  employmentType    EmploymentType     @default(FULL_TIME)
   preferredLocations String[]          @default([])
   preferredShifts    String[]          @default([])
+  // For managers: venue codes they have ownership of (e.g. ["TNG","VINEYARD"]).
+  // Empty for non-manager servers.
+  homeVenueCodes    String[]           @default([])
   notes             String?
   // Optional cached totals — recomputed by scheduling engine
   ytdHours          Float              @default(0)
@@ -273,6 +282,10 @@ model Room {
   capacity    Int?
   setupTypes  String[]      @default([])
   notes       String?
+  // Public-relative path under /public for the venue hero image.
+  // e.g. "/venues/town-and-gown.jpg". Null = no image set; UI falls back
+  // to a tinted card.
+  imagePath   String?
   events      Event[]
   spaces      EventSpace[]
 

@@ -22,6 +22,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+---
+
+## [0.4.0] — Phase 4: Real operational data + DnD fix
+
+**Released:** unreleased (tag pending)
+
+### Added
+- **Real USC venue catalog.** `data/banquet_master_data.json` now ships the
+  authoritative venue tree: 4 venue groups (UPC, HSC, U Club, USC Hotel) →
+  16 real venues with capacities, setup types, and event-space subdivisions
+  for Town & Gown's Grand Ballroom.
+- **Venue hero images.** Each `Room` carries an `imagePath` column populated
+  from `src/lib/venue-images.ts` at seed time. The `/locations` page now
+  renders a hero image per venue card.
+- **Real 32-employee roster.** `prisma/seed.ts` replaces the prior synthetic
+  20-server pool with 19 full-time and 13 part-time real employees, including
+  hire dates from 1995-08-28 through 2025-07-28 and Presidential-Server
+  honorifics #1..#7 captured on `Server.notes`.
+- **6 named department managers** seeded as `User` records with role=MANAGER:
+  Juanita Gomez, Leticia Velasquez, Eddie Cuevas, Levi Flefil,
+  Jovon O'Connor, Alonso Recinos. Login: `<first>.<last>@usc.edu` /
+  `password123`.
+- **`EmploymentType` enum** (`FULL_TIME` / `PART_TIME`) on `Server`.
+- **`Server.homeVenueCodes String[]`** for forthcoming manager-venue
+  ownership filtering.
+- **`Room.imagePath String?`** for venue hero art.
+- **`FEATURES.md` and `BUGS.md`** project-management docs at repo root.
+
+### Fixed
+- **Schedule-board drag-and-drop drops were silently swallowed when the
+  servers drawer was open.** The drawer's full-viewport scrim
+  (`fixed inset-0 backdrop-blur-[1px] pointer-events-auto`) both blurred the
+  grid via a CSS backdrop filter and intercepted every pointer event outside
+  the drawer, so every drop landed on the scrim's `onClick={onClose}`
+  instead of a shift cell. Removed the scrim entirely (drawer is now
+  non-modal) and added `paddingRight` on the board root so the grid stays
+  visible and droppable while the drawer is open.
+  See `BUGS.md → Resolved → v0.4`.
+
+### Changed
+- **`/beos/[id]` page:** column header "Room" → "Venue" (UI label only; the
+  Prisma model is still named `Room` — see `BUGS.md` for the rename plan).
+- **Master data `printLayout.header`** simplified to
+  "USC Private Events & Conferences — Weekly Schedule"; columns are now
+  Thu-first to match the operational week.
+
+### Notes
+- The Prisma `Room` model still uses its original name; renaming to `Venue`
+  is tracked as a separate effort to avoid a sweeping refactor in this
+  release.
+- Manager `homeVenues` are currently documented only as a constant in the
+  seed; persisting them on `User` is tracked in `BUGS.md`.
+
+---
+
 ## [0.3.0] — Phase 3: Rebrand, venue overhaul, week redesign, ML hooks
 
 ### Added
