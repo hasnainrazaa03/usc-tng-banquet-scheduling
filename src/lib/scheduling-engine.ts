@@ -138,6 +138,7 @@ export async function runAutoSchedule(opts: EngineOptions): Promise<EngineResult
   for (const s of allServers) {
     let total = 0;
     for (const a of s.assignments) {
+      if (a.calledOut) continue;
       if (a.shift.scheduleId === schedule.id) total += hoursBetween(a.shift.startsAt, a.shift.endsAt);
     }
     liveHours.set(s.id, total);
@@ -156,7 +157,8 @@ export async function runAutoSchedule(opts: EngineOptions): Promise<EngineResult
     if (shift.statusCode !== "NONE") continue; // OFF/VAC/etc don't get assigned
 
     for (const req of shift.requirements) {
-      const currentForRole = shift.assignments.filter((a) => a.roleCode === req.role.code).length;
+      // Called-out assignments stay in the DB for audit but free their slot.
+      const currentForRole = shift.assignments.filter((a) => a.roleCode === req.role.code && !a.calledOut).length;
       const neededRaw = req.count - currentForRole;
       if (neededRaw <= 0) continue;
 
@@ -166,8 +168,10 @@ export async function runAutoSchedule(opts: EngineOptions): Promise<EngineResult
         const candidates: { server: EngineServer; score: number; reasonBits: string[] }[] = [];
 
         for (const s of allServers as EngineServer[]) {
-          // Already on this shift?
-          const taken = shift.assignments.some((a) => a.serverId === s.id);
+          // Already on this shift? (an active, non-called-out assignment blocks; a
+          // prior called-out assignment does NOT — same server may be re-picked
+          // later, but typically the replacement workflow chooses someone else.)
+          const taken = shift.assignments.some((a) => a.serverId === s.id && !a.calledOut);
           if (taken) { rejected.push({ serverId: s.id, reason: "Already assigned to this shift" }); continue; }
 
           // Qualifications
@@ -184,14 +188,17 @@ export async function runAutoSchedule(opts: EngineOptions): Promise<EngineResult
             rejected.push({ serverId: s.id, reason: "On approved time off" }); continue;
           }
 
-          // Double-booking + min rest
-          const conflict = s.assignments.find((a) =>
+          // Active (non-called-out) assignments are the only ones that count as
+          // double-booking / rest violations / hour totals. Same calendar day +
+          // non-overlapping times is explicitly allowed — see scheduling docs.
+          const activeOwn = s.assignments.filter((a) => !a.calledOut);
+          const conflict = activeOwn.find((a) =>
             a.shift.scheduleId === schedule.id &&
             overlaps(a.shift.startsAt, a.shift.endsAt, shift.startsAt, shift.endsAt)
           );
           if (conflict) { rejected.push({ serverId: s.id, reason: "Double-booked on overlapping shift" }); continue; }
 
-          const restViol = s.assignments.find((a) =>
+          const restViol = activeOwn.find((a) =>
             a.shift.scheduleId === schedule.id &&
             hoursBetween(a.shift.endsAt, shift.startsAt) < minRestHours &&
             hoursBetween(shift.endsAt, a.shift.startsAt) < minRestHours
@@ -206,7 +213,7 @@ export async function runAutoSchedule(opts: EngineOptions): Promise<EngineResult
           // Consecutive days
           // (Simple check: count distinct dates in this schedule already assigned)
           const days = new Set(
-            s.assignments
+            activeOwn
               .filter((a) => a.shift.scheduleId === schedule.id)
               .map((a) => a.shift.date.toISOString().slice(0,10))
           );

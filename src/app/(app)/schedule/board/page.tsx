@@ -54,7 +54,20 @@ export default async function ScheduleBoardPage({
       include: {
         requirements: { include: { role: true } },
         assignments: { include: { server: true } },
-        event: true,
+        event: {
+          include: {
+            beo: {
+              select: {
+                id: true,
+                postAs: true,
+                expectedGuests: true,
+                manager: { select: { id: true, name: true } },
+                location: { select: { code: true, name: true } },
+                room: { select: { code: true, name: true } },
+              },
+            },
+          },
+        },
       },
     }),
     prisma.server.findMany({

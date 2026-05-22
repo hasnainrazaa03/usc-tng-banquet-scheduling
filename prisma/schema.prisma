@@ -429,8 +429,8 @@ enum ShiftStatusCode {
 model Schedule {
   id          String          @id @default(cuid())
   name        String
-  weekStart   DateTime        // Sunday 00:00
-  weekEnd     DateTime        // Saturday 23:59
+  weekStart   DateTime        // Thursday 00:00 (operational week — see src/lib/week-config.ts)
+  weekEnd     DateTime        // Wednesday 23:59
   status      ScheduleStatus  @default(DRAFT)
   notes       String?
   revisionDate DateTime?
@@ -502,6 +502,14 @@ model ShiftAssignment {
   acknowledged Boolean @default(false)
   assignedBy  String?
   reason      String?  // AI explanation / manager note
+  // Call-out / sick / no-show tracking. When `calledOut` is true the
+  // assignment stays in the DB for audit but the auto-scheduler, conflict
+  // detection, and "filled" counts ignore it, freeing the slot for a
+  // replacement.
+  calledOut       Boolean   @default(false)
+  calledOutReason String?
+  calledOutAt     DateTime?
+  calledOutBy     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

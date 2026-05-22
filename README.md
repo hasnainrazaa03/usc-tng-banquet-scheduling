@@ -156,6 +156,35 @@ For each unfilled role on each shift:
 
 Every assignment writes a `reason` string the UI can show as an AI explanation.
 
+### Call-outs, sick days, no-shows — manager-confirmed replacements
+
+The engine never auto-replaces a no-show. When a server can't make a shift:
+
+1. The manager opens the shift on the board and clicks the red person-minus
+   icon on the assignment chip.
+2. A confirmation modal records an optional reason and `PATCH`es
+   `/api/schedule/callout`. The original assignment row stays on record
+   (`calledOut: true` + `calledOutReason` + `calledOutAt` + `calledOutBy`) so
+   the call-out is auditable.
+3. The same modal then fetches `POST /api/schedule/replace`, which re-uses
+   the engine's eligibility filters (qualifications, availability, time-off,
+   overlap, weekly cap, min rest) to rank the top candidates. No data is
+   mutated here.
+4. The manager picks one of the suggestions and the standard
+   `/api/schedule/assign` endpoint records the replacement.
+
+Called-out rows are excluded from filled-slot counts, conflict detection,
+hour totals, and consecutive-day rules — so the freed slot really is free.
+
+### BEO-driven board
+
+Creating a BEO via `/beos/new` immediately syncs to the operational-week
+schedule: `src/lib/beo-sync.ts` ensures the `Schedule` exists, then creates
+the matching `Event` + `Shift`(s) + role requirements with 60 min pre-event
+and 30 min post-event padding on the shift window. The same helper is
+re-used by `POST /api/schedule/run` for bulk sync at week-generation time.
+Newly-imported BEOs appear on the board without needing to click "Generate".
+
 ## Importing / exporting master data
 
 The Master Data Editor page (`/master-data`) lets ops staff upload, edit,

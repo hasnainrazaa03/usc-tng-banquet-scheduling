@@ -24,7 +24,8 @@ import { ShiftCard } from "./components/ShiftCard";
 import { RosterGrid } from "./components/RosterGrid";
 import { ServersDrawer } from "./components/ServersDrawer";
 import { WeekNavigator } from "./components/WeekNavigator";
-import { DOW, dayKey, type BoardData, type Shift } from "./types";
+import { CalloutModal } from "./components/CalloutModal";
+import { DOW, dayKey, type BoardData, type Shift, type Assignment } from "./types";
 
 type View = "day" | "roster";
 type Density = "comfortable" | "compact";
@@ -59,6 +60,8 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
   const [shifts, setShifts] = useState<Shift[]>(data.shifts);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Call-out + replacement modal target. `null` means the modal is closed.
+  const [calloutTarget, setCalloutTarget] = useState<{ a: Assignment; shift: Shift } | null>(null);
 
   // Persisted view preferences (hydrated client-side to avoid SSR mismatch).
   const [view, setView] = useState<View>("day");
@@ -117,6 +120,8 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
   }, [shifts]);
 
   // Detect overlap conflicts: same server, overlapping time windows.
+  // Called-out assignments are excluded so they no longer count as conflicts
+  // for the replacement we just dragged in.
   const conflictIds = useMemo(() => {
     const map = new Map<string, { start: number; end: number; id: string }[]>();
     const set = new Set<string>();
@@ -125,6 +130,7 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
       const start = new Date(sh.startsAt).getTime();
       const end = new Date(sh.endsAt).getTime();
       for (const a of sh.assignments) {
+        if (a.calledOut) continue;
         const arr = map.get(a.serverId) ?? [];
         for (const other of arr) {
           if (start < other.end && end > other.start) {
@@ -273,8 +279,24 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
     (s, sh) => s + sh.requirements.reduce((x, r) => x + r.count, 0),
     0,
   );
-  const totalAssigned = shifts.reduce((s, sh) => s + sh.assignments.length, 0);
+  // Called-out assignments don't count as "assigned" anymore — they free the
+  // slot for a replacement.
+  const totalAssigned = shifts.reduce(
+    (s, sh) => s + sh.assignments.filter((a) => !a.calledOut).length,
+    0,
+  );
   const totalOpen = Math.max(0, totalReq - totalAssigned);
+  const totalCalledOut = shifts.reduce(
+    (s, sh) => s + sh.assignments.filter((a) => a.calledOut).length,
+    0,
+  );
+
+  // Open the call-out modal for a given assignment, looking up its parent
+  // shift in the local state so the modal has full context.
+  function openCallout(a: Assignment) {
+    const parent = shifts.find((sh) => sh.assignments.some((x) => x.id === a.id));
+    if (parent) setCalloutTarget({ a, shift: parent });
+  }
 
   // Density-aware sizing for the Day grid. Compact mode shrinks the card
   // header, internal padding, and minimum column height so the user can
@@ -309,6 +331,14 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
           />
           <StatBadge label="Assigned" value={totalAssigned} />
           <StatBadge label="Required" value={totalReq} />
+          {totalCalledOut > 0 && (
+            <StatBadge
+              label="Sick"
+              value={totalCalledOut}
+              tone="danger"
+              icon={<AlertTriangle className="h-3.5 w-3.5" />}
+            />
+          )}
           {conflictIds.size > 0 && (
             <StatBadge
               label="Conflicts"
@@ -455,6 +485,7 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
                               shift={sh}
                               onRemove={onRemove}
                               onToggleLock={onToggleLock}
+                              onCallout={openCallout}
                               conflictIds={conflictIds}
                             />
                           ))
@@ -507,6 +538,13 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
           )}
         </DragOverlay>
       </DndContext>
+
+      <CalloutModal
+        assignment={calloutTarget?.a ?? null}
+        shift={calloutTarget?.shift ?? null}
+        onClose={() => setCalloutTarget(null)}
+        onResolved={() => router.refresh()}
+      />
     </div>
   );
 }

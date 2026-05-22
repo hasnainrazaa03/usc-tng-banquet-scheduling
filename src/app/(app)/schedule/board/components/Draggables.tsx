@@ -1,6 +1,6 @@
 "use client";
 import { useDraggable } from "@dnd-kit/core";
-import { Lock, Unlock, X } from "lucide-react";
+import { Lock, Unlock, X, UserMinus } from "lucide-react";
 import type { Assignment, Server } from "../types";
 
 /** Server pill draggable from the sidebar / roster. */
@@ -56,16 +56,44 @@ export function AssignmentChip({
   a,
   onRemove,
   onToggleLock,
+  onCallout,
   conflict = false,
 }: {
   a: Assignment;
   onRemove: (id: string) => void;
   onToggleLock: (id: string, locked: boolean) => void;
+  onCallout?: (a: Assignment) => void;
   conflict?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `assignment:${a.id}`,
+    disabled: a.calledOut,
   });
+  if (a.calledOut) {
+    // Render a non-draggable, visibly struck-through chip so the manager can
+    // still see who originally had the shift. Restore button lets them undo.
+    return (
+      <div
+        className="group flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] bg-red-50 border border-red-200 text-red-900"
+        title={a.calledOutReason ?? "Called out"}
+      >
+        <UserMinus className="h-2.5 w-2.5 shrink-0" />
+        <span className="truncate font-medium flex-1 line-through">
+          {a.server.lastName}, {a.server.firstName[0]}.
+        </span>
+        <span className="text-[9px] font-semibold uppercase tracking-wider">sick</span>
+        {onCallout && (
+          <button
+            onClick={() => onCallout(a)}
+            title="Undo call-out"
+            className="opacity-0 group-hover:opacity-100 hover:opacity-70 transition"
+          >
+            <X className="h-2.5 w-2.5" />
+          </button>
+        )}
+      </div>
+    );
+  }
   return (
     <div
       ref={setNodeRef}
@@ -81,9 +109,6 @@ export function AssignmentChip({
       {a.locked ? (
         <Lock className="h-2.5 w-2.5 shrink-0 opacity-80" />
       ) : null}
-      {/* Drag handle: only this span has pointer listeners, so the Lock/Remove
-          buttons stay normally clickable and the chip's cursor only changes
-          when actually hovering the grabbable area. */}
       <span
         {...attributes}
         {...listeners}
@@ -92,6 +117,15 @@ export function AssignmentChip({
         {a.server.lastName}, {a.server.firstName[0]}.
       </span>
       <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
+        {onCallout && (
+          <button
+            onClick={() => onCallout(a)}
+            title="Mark sick / called out"
+            className="hover:opacity-70 text-red-600"
+          >
+            <UserMinus className="h-2.5 w-2.5" />
+          </button>
+        )}
         <button
           onClick={() => onToggleLock(a.id, !a.locked)}
           title={a.locked ? "Unlock assignment" : "Lock assignment"}

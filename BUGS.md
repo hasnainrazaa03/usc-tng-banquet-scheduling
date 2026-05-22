@@ -57,6 +57,32 @@ confirms the assignment lands on the right shift.
 
 ## Resolved (recent)
 
+### ✅ Phase 6 — `/schedule/generate` 500 with empty JSON body
+**Symptom:** `POST /api/schedule/run` returned a 500 with no body, causing
+`form.tsx` to crash with `Unexpected end of JSON input` at the `await
+res.json()` call. The page surfaced no error and the run silently failed.
+**Fix:** wrapped the entire route handler in try/catch so it always returns
+JSON (`{ error }` on failure, never an empty body). The form now reads the
+response as text first and `JSON.parse`s defensively, rendering a red error
+banner when parsing fails or `res.ok` is false.
+
+### ✅ Phase 6 — `Schedule.weekStart` not anchored to Thursday
+**Symptom:** The Generate form defaulted to "today's Sunday" and the API
+trusted whatever date you sent, even though TNG operates Thursday→Wednesday.
+**Fix:** Form default + API now both pass the date through
+`startOfOperationalWeek` (`src/lib/week-config.ts`), guaranteeing every
+`Schedule.weekStart` is a Thursday regardless of which day in the week the
+manager picks. Schema comments updated for clarity.
+
+### ✅ Phase 6 — BEOs didn't appear on the board until "Generate" was clicked
+**Symptom:** Creating a BEO via `/beos/new` only wrote the `BEO` row; the
+matching `Event` / `Shift` / `ShiftRequirement` rows weren't created until a
+manager explicitly ran `POST /api/schedule/run` for that week.
+**Fix:** new `src/lib/beo-sync.ts` is called from `POST /api/beos`
+immediately after the BEO is created. It ensures the operational-week
+`Schedule` exists, then idempotently creates the Event + Shift(s) +
+requirements. The same helper is reused by `/api/schedule/run` for bulk sync.
+
 ### ✅ Phase 5.1 — BEO ↔ Manager / Room had no real FK
 **Symptom:** `BEO` only stored `cateringManager` as free text; manager dashboards
 couldn't be scoped to "BEOs I own", and the BEO form's venue/room/manager were

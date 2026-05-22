@@ -18,6 +18,8 @@ export type Assignment = {
   locked: boolean;
   acknowledged: boolean;
   reason: string | null;
+  calledOut: boolean;
+  calledOutReason: string | null;
   server: Server;
 };
 
@@ -38,7 +40,21 @@ export type Shift = {
   statusCode: string;
   requirements: Requirement[];
   assignments: Assignment[];
-  event: { id: string; name: string } | null;
+  event:
+    | {
+        id: string;
+        name: string;
+        guests?: number | null;
+        beo?: {
+          id: string;
+          postAs: string;
+          expectedGuests: number | null;
+          manager: { id: string; name: string } | null;
+          location: { code: string; name: string } | null;
+          room: { code: string; name: string } | null;
+        } | null;
+      }
+    | null;
 };
 
 export type Schedule = {

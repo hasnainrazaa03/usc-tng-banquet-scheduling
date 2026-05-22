@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { deriveStaffingFromGuests } from "@/lib/ai";
+import { syncBeoShifts } from "@/lib/beo-sync";
 
 export async function GET() {
   const beos = await prisma.bEO.findMany({
@@ -127,5 +128,16 @@ export async function POST(req: NextRequest) {
       },
     },
   });
-  return NextResponse.json(beo);
+
+  // BEO-driven scheduling: as soon as a BEO is created the matching
+  // operational-week Schedule, Event, and Shift(s) appear on the board.
+  // Errors here should NOT roll back the BEO — we surface them in the
+  // response so the manager can re-run sync from the board if needed.
+  let sync: Awaited<ReturnType<typeof syncBeoShifts>> | { error: string } | null = null;
+  try {
+    sync = await syncBeoShifts(beo.id);
+  } catch (e) {
+    sync = { error: e instanceof Error ? e.message : String(e) };
+  }
+  return NextResponse.json({ ...beo, sync });
 }

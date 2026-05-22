@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **BEO-driven scheduling** — `src/lib/beo-sync.ts` is the single source of truth that, given a BEO, ensures the operational-week `Schedule` exists and has the matching `Event` + `Shift`(s) + role requirements. Called automatically from both `POST /api/beos` (so a newly-created BEO appears on the board immediately) and `POST /api/schedule/run` (bulk sync at week-generation time). Pre/post-event padding (60 min pre, 30 min post) is applied to shift windows so servers arrive early and stay for breakdown.
+- **Call-out / sick / no-show workflow** — new `ShiftAssignment` columns `calledOut`, `calledOutReason`, `calledOutAt`, `calledOutBy`. Manager hits the red user-minus icon on an assignment chip → confirmation modal records the reason → `PATCH /api/schedule/callout` flips the flag → `POST /api/schedule/replace` returns the top eligible replacements (same rules as the auto-scheduler, no auto-assign) → manager picks one and the standard `/api/schedule/assign` endpoint records the replacement. Original assignment stays on record for audit. Manager-controlled first, AI-assisted second.
+- **Shift cards now show manager + guest count** — board query now eagerly loads `event.beo.{manager, location, room, expectedGuests}` so each shift card surfaces the event's manager name, guest count, and venue inline.
+- **Sick stat badge** on the board header counts currently called-out assignments at a glance.
+- **API: `POST /api/schedule/replace`** — read-only endpoint that ranks replacement candidates for a given called-out assignment by re-using the engine's eligibility filters (qualifications, availability, time-off, overlap, weekly cap, min rest). Does not mutate any data.
+- **API: `PATCH /api/schedule/callout`** — marks (or un-marks) an assignment as called-out with an audit trail.
+
+### Changed
+- **Auto-scheduler ignores called-out assignments** — `runAutoSchedule` now excludes `calledOut: true` rows from filled-slot counts, overlap conflict checks, weekly-hour totals, consecutive-day counts, and "already on this shift" rejections. Multi-event-per-day server assignments continue to be allowed as long as time windows don't overlap.
+- **Auto-scheduler still respects required staffing count exactly** — the engine fills *up to* `ShiftRequirement.count` per role and never auto-exceeds it. Managers can still drag additional servers in beyond the requirement; the shift card shows an amber `↑` indicator when that happens so over-staffing is visible.
+- **Operational week is enforced end-to-end** — `Schedule.weekStart`/`weekEnd` comments updated to "Thursday 00:00 → Wednesday 23:59". The Generate Schedule form now defaults to the current operational Thursday (was: Sunday) and visibly previews the anchored Thursday date the user's pick will resolve to. `POST /api/schedule/run` normalises whatever date you send through `startOfOperationalWeek` so picking any day in the week still anchors correctly.
+
+### Fixed
+- **`/schedule/generate` 500 + `Failed to execute 'json' on 'Response'`** — `form.tsx` now reads the response as text first, JSON-parses defensively, and renders a visible red error banner instead of crashing the page on an empty or non-JSON body. `POST /api/schedule/run` is wrapped in a try/catch that always returns `{ error }` JSON (validates `weekStart` shape, returns 400 instead of throwing). No more silent crash when the BEO sync step throws.
+- **Board overlap detection** ignores called-out assignments so a freshly-dragged replacement isn't flagged as conflicting with the original call-out.
+
+---
+
+## [Phase 5.1] — 2026-05-21
+
+### Added
 - **BEO ↔ Manager relationship** — `BEO.managerId` and `BEO.roomId` are now real FKs (`User`, `Room`) instead of free-text. `User.managedBEOs` / `Room.beos` reverse relations added so managers and rooms can list their own BEOs.
 - **`/api/options` endpoint** — single read-only endpoint returning every venue (Location), its rooms, and every active manager/admin user. Used by the BEO form to power the new dropdowns.
 - **BEO form: dropdown selectors + required-field policy** — `/beos/new`:

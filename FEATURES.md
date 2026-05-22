@@ -55,6 +55,10 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | ✅ | Week navigator with prev/next sibling weeks | `src/app/(app)/schedule/board/components/WeekNavigator.tsx` | v0.3 |
 | ✅ | Adjacent-week seeds (prev + next) for demo continuity | `prisma/seed.ts` | v0.3 |
 | ✅ | Scoring plugin contract + registry stub | `src/lib/scheduling/plugins.ts` | v0.3 |
+| ✅ | Auto-scheduler respects required staffing count exactly (never auto-exceeds) | `src/lib/scheduling-engine.ts` | Phase 6 |
+| ✅ | Multi-event-per-day server assignments (only blocks on real time overlap / availability / hour rules) | `src/lib/scheduling-engine.ts` | Phase 6 |
+| ✅ | Call-out / sick / no-show workflow with manager-confirmed replacements (AI-assisted second) | `src/app/api/schedule/callout/route.ts`, `src/app/api/schedule/replace/route.ts`, `src/app/(app)/schedule/board/components/CalloutModal.tsx` | Phase 6 |
+| ✅ | Manual override above required count shown with amber `↑` on shift card | `src/app/(app)/schedule/board/components/ShiftCard.tsx` | Phase 6 |
 | 🚧 | Auto-assignment engine wiring (plugins → real assignments) | `src/lib/scheduling/engine.ts` | — |
 | 🧭 | ML / historical-learning hooks (read past schedules for preference signals) | — | — |
 
@@ -69,7 +73,8 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | ✅ | DB-linked Venue / Room / Manager dropdowns on `/beos/new` (via `/api/options`) | `src/app/api/options/route.ts`, `src/app/(app)/beos/new/page.tsx` | Phase 5.1 |
 | ✅ | Required-field policy enforced client + server (BEO#, Event, Booking ID, Date, Venue, Times, Guests, Manager) | `src/app/api/beos/route.ts` | Phase 5.1 |
 | 🚧 | Handwritten-changes annotation pipeline | `src/lib/import/staging.ts` | — |
-| 🧭 | One-click BEO → Schedule shift generator | — | — |
+| ✅ | One-click BEO → Schedule shift generator (auto-sync on BEO create + bulk on Run) | `src/lib/beo-sync.ts`, `src/app/api/beos/route.ts`, `src/app/api/schedule/run/route.ts` | Phase 6 |
+| ✅ | Shift card surfaces event manager + guest count + venue inline | `src/app/(app)/schedule/board/components/ShiftCard.tsx` | Phase 6 |
 
 ## Reporting & print
 
