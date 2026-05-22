@@ -64,18 +64,35 @@ export default async function LocationsPage() {
                     {l.rooms.length === 0 ? (
                       <div className="text-sm text-ink-muted italic">No venues configured yet.</div>
                     ) : (
-                      <ul className="grid sm:grid-cols-2 gap-2">
+                      <ul className="grid sm:grid-cols-2 gap-3">
                         {l.rooms.map((r) => (
-                          <li key={r.id} className="bg-canvas-soft rounded-lg p-3">
-                            <div className="font-medium">{r.name}</div>
-                            <div className="text-xs text-ink-muted">
-                              {r.code} · cap {r.capacity ?? "—"}
-                              {r.spaces.length > 0 && ` · ${r.spaces.length} space${r.spaces.length === 1 ? "" : "s"}`}
-                            </div>
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {r.setupTypes.map((s) => (
-                                <span key={s} className="pill bg-cardinal/10 text-cardinal">{s}</span>
-                              ))}
+                          <li key={r.id} className="bg-canvas-soft rounded-lg overflow-hidden">
+                            {r.imagePath ? (
+                              // Plain <img> on purpose — these images live in /public and we
+                              // need no Next/Image optimization pipeline for static venue art.
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={r.imagePath}
+                                alt={r.name}
+                                className="w-full h-28 object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="w-full h-28 bg-gradient-to-br from-cardinal/20 to-cardinal/5 flex items-center justify-center text-cardinal/60 text-xs font-mono">
+                                {r.code}
+                              </div>
+                            )}
+                            <div className="p-3">
+                              <div className="font-medium">{r.name}</div>
+                              <div className="text-xs text-ink-muted">
+                                {r.code} · cap {r.capacity ?? "—"}
+                                {r.spaces.length > 0 && ` · ${r.spaces.length} space${r.spaces.length === 1 ? "" : "s"}`}
+                              </div>
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {r.setupTypes.map((s) => (
+                                  <span key={s} className="pill bg-cardinal/10 text-cardinal">{s}</span>
+                                ))}
+                              </div>
                             </div>
                           </li>
                         ))}

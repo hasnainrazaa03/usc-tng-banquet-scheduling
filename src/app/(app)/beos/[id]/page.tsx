@@ -58,7 +58,7 @@ export default async function BEODetailPage({ params }: { params: { id: string }
               <tr>
                 <th className="px-3 py-2 text-left">Section</th>
                 <th className="px-3 py-2 text-left">Function</th>
-                <th className="px-3 py-2 text-left">Room</th>
+                <th className="px-3 py-2 text-left">Venue</th>
                 <th className="px-3 py-2 text-left">Setup</th>
                 <th className="px-3 py-2 text-left">Time</th>
                 <th className="px-3 py-2 text-left">Guests</th>

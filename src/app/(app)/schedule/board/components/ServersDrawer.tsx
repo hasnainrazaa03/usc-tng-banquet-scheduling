@@ -56,20 +56,23 @@ export function ServersDrawer({
 
   return (
     <>
-      {/* Scrim — clicking dismisses; keeps drag interactions safe */}
-      <div
-        className={`fixed inset-0 z-30 bg-ink/30 backdrop-blur-[1px] transition-opacity ${
-          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        }`}
-        onClick={onClose}
-        aria-hidden="true"
-      />
-      {/* Drawer */}
+      {/*
+        IMPORTANT: no full-viewport scrim. v0.3 used a `fixed inset-0` scrim
+        with `backdrop-blur` and `pointer-events-auto`, which had two fatal
+        bugs while dragging:
+          1. The blur filter visually muddied the schedule grid behind it.
+          2. The scrim intercepted pointer events so drops landed on the
+             scrim instead of shift cells (silent failures).
+        The drawer is now a plain right-edge panel — non-modal — so users
+        can drag freely from the panel onto any shift cell on the board.
+      */}
       <aside
-        className={`fixed top-0 right-0 z-40 h-full w-[360px] max-w-[92vw] bg-white shadow-2xl border-l border-ink/10 transition-transform ${
+        className={`fixed top-0 right-0 z-40 h-full w-[340px] max-w-[92vw] bg-white shadow-2xl border-l border-ink/10 transition-transform ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
+        style={{ willChange: "transform" }}
         aria-label="Available servers"
+        aria-hidden={!open}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-ink/10 bg-gradient-to-r from-cardinal to-cardinal-700 text-white">
           <div className="flex items-center gap-2">
