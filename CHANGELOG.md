@@ -12,6 +12,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **BEO import overhaul** — `/beos/new` is now a single tabbed surface with four entry modes:
+  - **Form** — manual entry (existing behaviour, expanded fields).
+  - **Text** — paste raw BEO text; parser extracts and pre-fills the form.
+  - **PDF** — upload a text-based PDF; client-side `pdfjs-dist` extracts text per page (read order preserved), then runs the BEO field parser.
+  - **PNG / Image** — upload a PNG/JPG/WEBP; client-side Tesseract.js OCR with live progress bar, then runs the BEO field parser.
+- Extended local BEO extractor (`src/lib/ai.ts`) to recognise: event date (ISO / US / long-form), venue (matched against 16 USC room codes), setup notes, menu, A/V, additional notes, on-site contact (name/email/phone), catering manager, and a coarse confidence score.
+- POST `/api/beos` now accepts and persists the extra free-form fields (menu, A/V, notes, contact info) into `setupNotes`, and resolves `locationCode` against both `Location.code` and `Room.code`.
+- "Imported from {source}" banner on the form with a low-confidence warning and a one-click Clear button so users always review parsed data before saving.
+
+### Fixed
+- **Board DnD: drag handle UX** — `AssignmentChip` no longer renders `cursor-grab` on its full surface; the cursor only changes over the actual name handle so lock/remove buttons feel like buttons again.
+- **Board DnD: assignment overlay** — `<DragOverlay>` now shows a moving chip when re-assigning an existing slot, not just when dragging from the Servers drawer.
+- **Roster grid: sticky-column bleed** — the sticky first column now uses an explicit per-row opaque background (`bg-white` / `#f5f0eb`) matching the row stripe, instead of `bg-inherit` which let scrolling content show through.
+
+### Changed
+- `/beos/import` is now a permanent redirect to `/beos/new` — old bookmarks and the nav Import link keep working.
+
 ### Planned
 - Email / SMS shift notifications
 - Native CSV / PDF BEO importer (full pipeline + UI on top of v0.3 staging)
