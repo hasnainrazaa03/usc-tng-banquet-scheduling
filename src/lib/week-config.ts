@@ -110,3 +110,26 @@ export function isoLocalDate(d: Date): string {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
+
+/**
+ * Parse a date string as a LOCAL date.
+ *
+ * `new Date("2026-05-21")` is interpreted as UTC midnight, which in any
+ * negative-offset timezone (e.g. PDT) reads back as the previous calendar
+ * day in local time. That single off-by-one was the root cause of the
+ * "Today goes to the wrong week" / "Next moves but not by one week" bugs
+ * on the schedule board.
+ *
+ * This helper accepts either a bare `YYYY-MM-DD` (parsed in local TZ at
+ * 00:00) or any full ISO string (delegated to the standard Date parser).
+ * Always returns a Date safe to pass into `startOfOperationalWeek`.
+ */
+export function parseLocalDate(s: string | Date | undefined | null): Date {
+  if (!s) return new Date();
+  if (s instanceof Date) return s;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (m) {
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 0, 0, 0, 0);
+  }
+  return new Date(s);
+}

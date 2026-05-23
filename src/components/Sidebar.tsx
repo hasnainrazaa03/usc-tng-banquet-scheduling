@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import type { UserRole } from "@prisma/client";
 import {
   LayoutDashboard, ClipboardList, Upload, MapPin, Users, Award,
-  CalendarCheck, CalendarClock, Wand2, GanttChartSquare, Printer, ScrollText, Database
+  CalendarCheck, CalendarClock, Wand2, GanttChartSquare, Printer, ScrollText
 } from "lucide-react";
 
 const NAV: { href: string; label: string; icon: any; roles: UserRole[] }[] = [
@@ -21,7 +21,6 @@ const NAV: { href: string; label: string; icon: any; roles: UserRole[] }[] = [
   { href: "/schedule/board", label: "Schedule Board", icon: GanttChartSquare, roles: ["ADMIN","MANAGER","SUPERVISOR"] },
   { href: "/schedule/print", label: "Printable Schedule", icon: Printer, roles: ["ADMIN","MANAGER","SUPERVISOR","EMPLOYEE"] },
   { href: "/audit", label: "Audit Log", icon: ScrollText, roles: ["ADMIN","MANAGER"] },
-  { href: "/master-data", label: "Master Data", icon: Database, roles: ["ADMIN","MANAGER"] },
 ];
 
 export default function Sidebar({ role }: { role: UserRole }) {

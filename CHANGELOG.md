@@ -13,6 +13,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 9 — Calendar-based week picker on the schedule board.** A native
+  `<input type="date">` replaces the old "Jump to" dropdown. Picking any
+  date snaps the board to that day's Thursday → Wednesday operational
+  week, so users can browse arbitrary weeks of the year — not only weeks
+  with a pre-existing `Schedule` row.
+- **Phase 9 — Editable per-day server availability.** `/availability` is
+  now a click-to-edit matrix. Cell click opens a time-range modal that
+  saves through the new `PUT /api/availability` endpoint
+  (`src/app/api/availability/route.ts`). ADMIN / MANAGER only.
+- **Phase 9 — `docs/DEPLOYMENT.md`.** Step-by-step backend + database
+  deployment guide: Vercel + Neon (recommended) and Render (alternative).
+  Includes sign-up flow, environment variables, `prisma db push`, seed,
+  and a post-deploy verification checklist.
+
+### Changed
+- **Phase 9 — Robust local-date parsing on the board.** New
+  `parseLocalDate` helper in `src/lib/week-config.ts` parses bare
+  `YYYY-MM-DD` strings in **local** time. Both `WeekNavigator` and
+  `schedule/board/page.tsx` route through it, fixing Today / Prev / Next
+  landing on the previous operational week in negative-UTC timezones.
+- **Phase 9 — Board remounts per operational week.** `<ScheduleBoard>` is
+  now rendered with `key={schedule.id}` so its `useState`-seeded local
+  shifts hydrate from the freshly-fetched week. Side-effects: BEO cards,
+  Open / Assigned / Unassigned counts, and the Servers / Managers
+  drawers all refresh correctly on week change. Previously the counts
+  inflated because state carried over between weeks.
+- **Phase 9 — Master Data Editor removed from the UI.** The sidebar entry
+  and `/master-data` route are gone. The `POST /api/master-data` API and
+  importer are retained for seed/import workflows.
+
+### Added
 - **Phase 8 — Manager venue ownership persisted on `User`.** New `User.homeVenueCodes String[]` column. The seed now writes each named manager's `homeVenues` into the DB (e.g. `["TNG"]`, `["VINEYARD","UPC"]`), unblocking a future ManagerScopeFilter that scopes the board / dashboards to "events at my venues".
 - **Phase 8 — Presidential-Server rank as a structured column.** New `Server.presidentialRank Int?`. The seed parses `"Presidential Server #N"` out of free-text notes into the column, so the roster can sort and tie-break on it without string parsing at render time.
 - **Phase 8 — `MasterDataVersion` written on every seed.** After `importMasterData` succeeds, the seed stamps the next monotonic `versionNum` along with the raw JSON payload and a `"Seed import — N venues / M rooms"` note. The version table is no longer empty on fresh databases.

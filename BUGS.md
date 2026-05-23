@@ -27,6 +27,53 @@ confirms the assignment lands on the right shift.
 
 ## Resolved (recent)
 
+### ✅ Phase 9 — Schedule board stuck on previous operational week
+**Symptom:** Today / Prev / Next on the board navigated to the wrong
+week. Specifically, "Today" landed on the **previous** Thursday→Wednesday
+week in any negative-UTC timezone.
+**Root cause:** `WeekNavigator` and `board/page.tsx` parsed bare
+`YYYY-MM-DD` strings with `new Date(...)`. JavaScript treats those as
+**UTC**, so in PDT they decoded to the previous local day, and
+`startOfOperationalWeek` then snapped back another seven days.
+**Fix:** added `parseLocalDate(...)` in `src/lib/week-config.ts` and routed
+both files through it. All bare-date parsing in the week-nav path is now
+timezone-stable.
+
+### ✅ Phase 9 — Schedule board didn't redraw BEOs / counts on week change
+**Symptom:** Pressing Prev/Next/Today re-rendered the URL but the BEO
+cards, Open / Assigned / Unassigned counts, and servers/managers drawers
+still showed the previous week's data.
+**Root cause:** `<ScheduleBoard>` is a client island that seeds its
+`useState(data.shifts)` only at mount. The router refresh handed it a new
+`data` prop but state never re-seeded.
+**Fix:** the RSC now renders `<ScheduleBoard key={schedule.id} … />`, so
+React unmounts and remounts the island when the operational week changes
+and the local state hydrates from the freshly-fetched week.
+
+### ✅ Phase 9 — "Ridiculously high" Open / Assigned / Unassigned counts
+Same root cause as above. The counts are derived from `shifts` state and
+recompute correctly once the island remounts per week.
+
+### ✅ Phase 9 — Jump-to dropdown was broken and limited
+**Symptom:** The Jump-to dropdown only listed weeks with an existing
+`Schedule` row, and its onChange handler used `new Date()` so even
+in-list weeks could land on the wrong Thursday.
+**Fix:** replaced the dropdown with a native `<input type="date">`
+calendar picker that snaps any chosen day to its operational Thursday.
+
+### ✅ Phase 9 — Master Data Editor tab removed from UI
+The admin master-data JSON editor was redundant with the per-resource
+admin pages and confused users. The `Master Data` sidebar entry and the
+`/master-data` route are deleted; the underlying `POST /api/master-data`
+API and importer remain for seed/import workflows.
+
+### ✅ Phase 9 — Availability was read-only
+**Symptom:** `/availability` rendered a static grid; managers had no way
+to edit weekly availability without touching the database.
+**Fix:** `/availability` is now an editable matrix. Clicking any cell
+opens a modal that saves through `PUT /api/availability`. Writes
+require ADMIN or MANAGER. Auto-scheduler reads the same rows.
+
 ### ✅ Phase 8 — Manager home-venue ownership not persisted
 **Symptom:** The 6 department managers seeded with `homeVenues` only carried
 that data as a hardcoded constant in `prisma/seed.ts`; nothing reached the DB,

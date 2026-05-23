@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import ScheduleBoard from "./board";
-import { startOfOperationalWeek, endOfOperationalWeek } from "@/lib/week-config";
+import { startOfOperationalWeek, endOfOperationalWeek, parseLocalDate } from "@/lib/week-config";
 import { ensureWeeklySchedule, syncBeoShifts } from "@/lib/beo-sync";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +22,11 @@ export default async function ScheduleBoardPage({
   // 00:00 → Wednesday 23:59) and then syncs any BEOs whose eventDate lands
   // in that window into Shifts. This means every week of the year is
   // navigable and every BEO already in the DB shows up automatically.
+  //
+  // Phase 9 bugfix: parse `?week` via `parseLocalDate` so a bare YYYY-MM-DD
+  // is anchored in local time. `new Date("2026-05-21")` was being read as
+  // UTC midnight which, in PDT, became the previous calendar day — that's
+  // why Today/Prev/Next previously jumped to the wrong operational week.
   let anchorDate: Date = startOfOperationalWeek(new Date());
   let schedule = null as Awaited<ReturnType<typeof prisma.schedule.findFirst>>;
 
@@ -32,7 +37,7 @@ export default async function ScheduleBoardPage({
 
   if (!schedule) {
     if (searchParams.week) {
-      const parsed = new Date(searchParams.week);
+      const parsed = parseLocalDate(searchParams.week);
       if (!isNaN(parsed.getTime())) {
         anchorDate = startOfOperationalWeek(parsed);
       }
@@ -66,6 +71,9 @@ export default async function ScheduleBoardPage({
     take: 104,
   });
 
+  // CRITICAL: every Shift returned is scoped to `schedule.id`, which itself
+  // is anchored to the requested operational week. There is no cross-week
+  // bleed at the query level.
   const [shifts, servers, managers] = await Promise.all([
     prisma.shift.findMany({
       where: { scheduleId: schedule.id },
@@ -105,5 +113,10 @@ export default async function ScheduleBoardPage({
   const serialized = JSON.parse(
     JSON.stringify({ schedule, shifts, servers, managers, siblingSchedules }),
   );
-  return <ScheduleBoard data={serialized} />;
+  // Force a full remount whenever the user navigates to a different
+  // operational week. Without `key`, `useState(data.shifts)` would keep
+  // the previous week's shifts on screen even though the RSC fetched
+  // fresh ones — exactly the "BEOs don't change when the week changes"
+  // bug reported in Phase 9.
+  return <ScheduleBoard key={schedule.id} data={serialized} />;
 }

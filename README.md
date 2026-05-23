@@ -94,6 +94,14 @@ npm run dev
 ```
 Open <http://localhost:3000>.
 
+### 5. Deploy to a real server
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for a step-by-step guide to
+deploying the app and PostgreSQL database to managed services (Vercel +
+Neon recommended; Render alternative covered). Includes sign-up flow,
+required environment variables (`DATABASE_URL`, `AUTH_SECRET`), the
+`prisma db push` + seed sequence, and a post-deploy verification
+checklist.
+
 ### Demo accounts (password `password123`)
 | Email | Role |
 | --- | --- |

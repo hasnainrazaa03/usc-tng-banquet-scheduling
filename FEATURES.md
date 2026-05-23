@@ -43,6 +43,7 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | ✅ | `Server.homeVenueCodes` (string array) for future manager-venue ownership | schema | v0.4 |
 | ✅ | Seniority records auto-computed from hireDate; ranked 1..N | `prisma/seed.ts` | v0.3 |
 | 🧭 | Availability editor UI | — | — |
+| ✅ | Availability editor — click-to-edit per (server × weekday) matrix | `src/app/(app)/availability/editor.tsx`, `src/app/api/availability/route.ts` | Phase 9 |
 | 🧭 | Time-off request workflow (approve/deny) | `TimeOffRequest` model | — |
 
 ## Scheduling
@@ -66,6 +67,9 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | ✅ | Presidential-Server rank as structured `Server.presidentialRank` column (replaces notes-string parsing) | `prisma/schema.prisma`, `prisma/seed.ts` | Phase 8 |
 | ✅ | Master-data importer threads `Room.imagePath` through (admin-UI saves no longer drop room images) | `src/lib/master-data/schema.ts`, `src/lib/import/master-data-importer.ts` | Phase 8 |
 | ✅ | `MasterDataVersion` actively written on every seed import (version field no longer unused) | `prisma/seed.ts` | Phase 8 |
+| ✅ | Calendar-based week picker (replaces "Jump to" dropdown; snaps any date to its operational Thursday) | `src/app/(app)/schedule/board/components/WeekNavigator.tsx` | Phase 9 |
+| ✅ | Robust local-date parsing for `?week=YYYY-MM-DD` (fixes Today / Prev / Next drifting one week in negative-UTC timezones) | `src/lib/week-config.ts` (`parseLocalDate`) | Phase 9 |
+| ✅ | Board remounts on week change (`key={schedule.id}` on `<ScheduleBoard>`) — BEOs, counts, drawers all refresh correctly | `src/app/(app)/schedule/board/page.tsx` | Phase 9 |
 | 🚧 | Auto-assignment engine wiring (plugins → real assignments) | `src/lib/scheduling/engine.ts` | — |
 | 🧭 | ML / historical-learning hooks (read past schedules for preference signals) | — | — |
 
