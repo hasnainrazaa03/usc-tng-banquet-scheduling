@@ -105,11 +105,17 @@ export async function importMasterData(
             name: r.name,
             capacity: r.capacity ?? null,
             setupTypes: r.setupTypes,
+            imagePath: r.imagePath ?? null,
           },
           update: {
             name: r.name,
             capacity: r.capacity ?? null,
             setupTypes: r.setupTypes,
+            // Only overwrite when the master data actually carries a value.
+            // This lets the post-import seed step in `prisma/seed.ts` (which
+            // merges `VENUE_IMAGES`) stay authoritative for codes the JSON
+            // doesn't yet specify.
+            ...(r.imagePath ? { imagePath: r.imagePath } : {}),
           },
         });
         counts.rooms++;

@@ -33,6 +33,10 @@ model User {
   name          String
   role          UserRole @default(EMPLOYEE)
   active        Boolean  @default(true)
+  // Venue codes a manager has operational ownership of (e.g. ["TNG","VINEYARD"]).
+  // Empty for non-manager users. Used by future ManagerScopeFilter so a manager
+  // dashboard can be scoped to "BEOs in my venues".
+  homeVenueCodes String[] @default([])
   server        Server?  @relation("UserServer")
   managedBEOs   BEO[]    @relation("BEOManager")
   createdAt     DateTime @default(now())
@@ -87,6 +91,9 @@ model Server {
   // For managers: venue codes they have ownership of (e.g. ["TNG","VINEYARD"]).
   // Empty for non-manager servers.
   homeVenueCodes    String[]           @default([])
+  // Presidential-Server honorific rank (1..7), surfaced for sorting and
+  // tie-breakers. NULL for servers who are not Presidential Servers.
+  presidentialRank  Int?
   notes             String?
   // Optional cached totals — recomputed by scheduling engine
   ytdHours          Float              @default(0)

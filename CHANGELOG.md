@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 8 — Manager venue ownership persisted on `User`.** New `User.homeVenueCodes String[]` column. The seed now writes each named manager's `homeVenues` into the DB (e.g. `["TNG"]`, `["VINEYARD","UPC"]`), unblocking a future ManagerScopeFilter that scopes the board / dashboards to "events at my venues".
+- **Phase 8 — Presidential-Server rank as a structured column.** New `Server.presidentialRank Int?`. The seed parses `"Presidential Server #N"` out of free-text notes into the column, so the roster can sort and tie-break on it without string parsing at render time.
+- **Phase 8 — `MasterDataVersion` written on every seed.** After `importMasterData` succeeds, the seed stamps the next monotonic `versionNum` along with the raw JSON payload and a `"Seed import — N venues / M rooms"` note. The version table is no longer empty on fresh databases.
+
+### Changed
+- **Phase 8 — Master-data importer now reads `Room.imagePath`.** `RoomSchema` and `FlatRoomSchema` accept `imagePath`, `normalizeMasterData` threads it through both branches, and `importMasterData` writes it on create. On update it only overwrites when the JSON carries a non-empty value, so the seed's `VENUE_IMAGES` fallback continues to win for codes the JSON omits. An admin-UI master-data save no longer wipes existing room hero images.
+- **Phase 8 — Sample BEO booking id derived from event year.** The hardcoded `BK-2026-1042` in `prisma/seed.ts` is now `` `BK-${eventDate.getFullYear()}-1042` ``, so re-seeding in 2027+ produces a non-stale demo id.
+
+### Added
 - **Phase 7 — Manager drag-and-drop on the schedule board.** Managers no longer have to be chosen at BEO-creation time; they're assigned (and reassigned, and cleared) from the board itself.
   - New floating **Managers** drawer on the board (right-edge, non-modal, same pattern as Servers). Search by name, filter by role.
   - Every shift card whose event is backed by a BEO now exposes a **manager drop zone** under the staffing header. Dashed placeholder when empty, a draggable chip when filled. The chip has an X to clear.

@@ -59,9 +59,9 @@ function yearsBetween(from: Date, to: Date): number {
 // ─── Real USC manager + employee data ──────────────────────────────────────
 //
 // Managers are department-level supervisors recorded as User records with
-// role=MANAGER. Their `homeVenues` are documented here for future routing
-// but not yet persisted (User has no homeVenueCodes column — managers don't
-// have a Server row).
+// role=MANAGER. As of Phase 7.1 their `homeVenues` are persisted on
+// `User.homeVenueCodes` so a future ManagerScopeFilter can scope dashboards
+// to "BEOs in my venues".
 //
 const MANAGERS: ReadonlyArray<{
   email: string;
@@ -163,6 +163,22 @@ async function main() {
   }
   console.log(`  ✓ ${importResult.counts.venueGroups} venue groups, ${importResult.counts.locations} locations, ${importResult.counts.rooms} rooms, ${importResult.counts.eventSpaces} event spaces`);
 
+  // Record a MasterDataVersion row so the field is actually used and the
+  // admin UI can show "current data version" after a fresh seed. We pick
+  // the next monotonically-increasing versionNum so re-seeding doesn't
+  // collide with the unique constraint.
+  const lastVersion = await prisma.masterDataVersion.findFirst({ orderBy: { versionNum: "desc" } });
+  const nextVersionNum = (lastVersion?.versionNum ?? 0) + 1;
+  await prisma.masterDataVersion.create({
+    data: {
+      versionNum: nextVersionNum,
+      payload: raw as object,
+      importedBy: null,
+      note: `Seed import — ${importResult.counts.venueGroups} venue groups / ${importResult.counts.rooms} rooms`,
+    },
+  });
+  console.log(`  ✓ Recorded MasterDataVersion #${nextVersionNum}`);
+
   // 1) Stamp imagePath on every room that has a known image.
   console.log("→ Setting venue images on rooms…");
   let imageCount = 0;
@@ -218,8 +234,19 @@ async function main() {
   for (const mgr of MANAGERS) {
     await prisma.user.upsert({
       where: { email: mgr.email },
-      create: { email: mgr.email, name: mgr.name, passwordHash: password, role: UserRole.MANAGER },
-      update: { name: mgr.name, role: UserRole.MANAGER, active: true },
+      create: {
+        email: mgr.email,
+        name: mgr.name,
+        passwordHash: password,
+        role: UserRole.MANAGER,
+        homeVenueCodes: mgr.homeVenues,
+      },
+      update: {
+        name: mgr.name,
+        role: UserRole.MANAGER,
+        active: true,
+        homeVenueCodes: mgr.homeVenues,
+      },
     });
   }
   console.log(`  ✓ 3 system users + ${MANAGERS.length} named managers`);
@@ -233,6 +260,12 @@ async function main() {
     const hireDate = new Date(s.hireDate + "T00:00:00Z");
     const email = emailFor(s);
 
+    // Parse Presidential-Server honorific out of the free-text `notes` field
+    // into a structured rank column so the roster can sort on it without
+    // string-parsing every render.
+    const presMatch = s.notes?.match(/Presidential Server #(\d+)/i);
+    const presidentialRank = presMatch ? Number(presMatch[1]) : null;
+
     const server = await prisma.server.upsert({
       where: { employeeId },
       create: {
@@ -245,6 +278,7 @@ async function main() {
         employmentType: s.employmentType,
         status: EmploymentStatus.ACTIVE,
         notes: s.notes ?? null,
+        presidentialRank,
       },
       update: {
         firstName: s.firstName,
@@ -255,6 +289,7 @@ async function main() {
         employmentType: s.employmentType,
         status: EmploymentStatus.ACTIVE,
         notes: s.notes ?? null,
+        presidentialRank,
       },
     });
     createdServers.push({ id: server.id, hireDate, firstName: s.firstName, lastName: s.lastName });
@@ -314,12 +349,13 @@ async function main() {
 
   if (upcLocation && tngRoom) {
     const eventDate = addDays(weekStart, 3); // Sunday of the Thu→Wed week
-    const existingBEO = await prisma.bEO.findUnique({ where: { bookingId: "BK-2026-1042" } });
+    const bookingId = `BK-${eventDate.getFullYear()}-1042`;
+    const existingBEO = await prisma.bEO.findUnique({ where: { bookingId } });
     const beo =
       existingBEO ??
       (await prisma.bEO.create({
         data: {
-          bookingId: "BK-2026-1042",
+          bookingId,
           postAs: "Trustees Donor Reception & Dinner",
           account: "USC Office of the President",
           billingMethod: "Internal Transfer",

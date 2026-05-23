@@ -13,6 +13,10 @@ const RoomSchema = z.object({
   name: z.string().min(1),
   capacity: z.number().int().positive().nullable().optional(),
   setupTypes: z.array(z.string()).default([]),
+  // Optional path to a hero image (relative to /public, e.g. "/venues/tng.jpg").
+  // Importer stamps it onto Room.imagePath so the seed no longer has to do a
+  // separate post-import pass via src/lib/venue-images.ts.
+  imagePath: z.string().optional(),
   spaces: z.array(z.object({
     code: z.string().min(1),
     name: z.string().min(1),
@@ -54,6 +58,7 @@ const FlatRoomSchema = z.object({
   name: z.string().min(1),
   capacity: z.number().int().positive().nullable().optional(),
   setupTypes: z.array(z.string()).default([]),
+  imagePath: z.string().optional(),
 });
 
 export const MasterDataSchema = z.object({
@@ -95,6 +100,7 @@ export type NormalizedRoom = {
   name: string;
   capacity?: number | null;
   setupTypes: string[];
+  imagePath?: string;
   spaces?: { code: string; name: string; capacity?: number | null; setupCode?: string }[];
 };
 
@@ -121,6 +127,7 @@ export function normalizeMasterData(data: MasterData): NormalizedVenue[] {
           name: r.name,
           capacity: r.capacity ?? null,
           setupTypes: r.setupTypes ?? [],
+          imagePath: r.imagePath,
           spaces: r.spaces,
         })),
       })),
@@ -158,6 +165,7 @@ export function normalizeMasterData(data: MasterData): NormalizedVenue[] {
       name: room.name,
       capacity: room.capacity ?? null,
       setupTypes: room.setupTypes ?? [],
+      imagePath: room.imagePath,
     });
   }
 

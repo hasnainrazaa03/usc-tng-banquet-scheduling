@@ -62,6 +62,10 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | ✅ | Manager drag-and-drop on the board (drawer + per-BEO drop zone + chip-to-clear) | `src/app/(app)/schedule/board/components/ManagersDrawer.tsx`, `Draggables.tsx`, `ShiftCard.tsx`, `board.tsx`, `src/app/api/beos/[id]/manager/route.ts` | Phase 7 |
 | ✅ | Any-week navigation — board materialises Schedule on demand for arbitrary Thursday→Wednesday windows | `src/app/(app)/schedule/board/page.tsx`, `src/lib/beo-sync.ts` | Phase 7 |
 | ✅ | BEO auto-visibility — any BEO in the DB for the visible week appears without a pre-existing Schedule row | `src/app/(app)/schedule/board/page.tsx`, `src/lib/beo-sync.ts` | Phase 7 |
+| ✅ | Manager home-venue ownership persisted on `User.homeVenueCodes` (unblocks future ManagerScopeFilter) | `prisma/schema.prisma`, `prisma/seed.ts` | Phase 8 |
+| ✅ | Presidential-Server rank as structured `Server.presidentialRank` column (replaces notes-string parsing) | `prisma/schema.prisma`, `prisma/seed.ts` | Phase 8 |
+| ✅ | Master-data importer threads `Room.imagePath` through (admin-UI saves no longer drop room images) | `src/lib/master-data/schema.ts`, `src/lib/import/master-data-importer.ts` | Phase 8 |
+| ✅ | `MasterDataVersion` actively written on every seed import (version field no longer unused) | `prisma/seed.ts` | Phase 8 |
 | 🚧 | Auto-assignment engine wiring (plugins → real assignments) | `src/lib/scheduling/engine.ts` | — |
 | 🧭 | ML / historical-learning hooks (read past schedules for preference signals) | — | — |
 

@@ -12,50 +12,58 @@ Severities: **P0** ship-blocker · **P1** broken feature · **P2** UX wart ·
 
 ## Open
 
-### P3 — Manager home-venue ownership not persisted
-The 6 named department managers seeded in v0.4 carry their `homeVenues` only as
-a hardcoded constant in `prisma/seed.ts`. There's no `User.homeVenueCodes`
-column yet, so the UI cannot scope manager dashboards by venue.
-**Fix:** add `homeVenueCodes String[] @default([])` to `User`, populate during
-seed, and wire into a future ManagerScopeFilter.
-
-### P3 — Presidential Server ordering is implicit
-Presidential Server #1..#7 ordering is recorded in `Server.notes` as free
-text rather than a structured column, so we cannot sort the roster by
-presidential rank without parsing strings.
-**Fix:** add `Server.presidentialRank Int?` and use it in seniority tie-breakers.
-
 ### P3 — `Room` Prisma model still named "Room"
 Domain language is "Venue". Renaming the Prisma model touches every query and
 risks regressions; deferred to a dedicated PR.
 **Fix:** rename `Room → Venue` (Prisma `@@map("Room")`), then progressively
 migrate all `prisma.room.*` callers. See `docs/architecture/venue-hierarchy.md`.
 
-### TD — Master-data importer ignores `imagePath`
-`importMasterData` does not read `imagePath` from the JSON; instead the seed
-hard-stamps `Room.imagePath` from `src/lib/venue-images.ts` after import.
-Works for now, but a non-seed importer run (e.g. admin UI) would not set
-images.
-**Fix:** add `imagePath` to `RoomSchema` in `src/lib/master-data/schema.ts`
-and have the importer pass it through.
-
-### TD — Sample BEO booking ID is hardcoded
-`BK-2026-1042` is hardcoded in the seed. Re-running the seed across calendar
-years will leave the booking dated to the seed-time week but the ID will look
-stale.
-**Fix:** derive bookingId from current year, e.g. `BK-${year}-1042`.
-
 ### TD — No tests for DnD board
 The Phase 4.1 fix for the scrim-eating-drops bug is currently validated only
 manually. We need a Playwright / Vitest+jsdom test that simulates a drop and
 confirms the assignment lands on the right shift.
 
-### TD — Master data version field is unused
-`MasterDataVersion` model exists but the importer doesn't increment it.
-
 ---
 
 ## Resolved (recent)
+
+### ✅ Phase 8 — Manager home-venue ownership not persisted
+**Symptom:** The 6 department managers seeded with `homeVenues` only carried
+that data as a hardcoded constant in `prisma/seed.ts`; nothing reached the DB,
+so a future ManagerScopeFilter could not scope dashboards by venue.
+**Fix:** added `User.homeVenueCodes String[] @default([])` and the seed now
+writes `mgr.homeVenues` into it on every upsert.
+
+### ✅ Phase 8 — Presidential Server ordering parsed from free-text notes
+**Symptom:** Presidential rank #1..#7 was buried in `Server.notes` like
+`"Presidential Server #2"`, so sorting / tie-breaking required string parsing
+at every render.
+**Fix:** added `Server.presidentialRank Int?` and the seed derives the value
+from the notes regex on import. Roster code can now order on the structured
+column directly.
+
+### ✅ Phase 8 — Master-data importer dropped `imagePath`
+**Symptom:** `importMasterData` ignored `imagePath` on incoming JSON, so the
+admin UI's master-data save would wipe room hero images. The seed worked only
+because it post-stamped images from `src/lib/venue-images.ts`.
+**Fix:** `imagePath` is now part of `RoomSchema` and `FlatRoomSchema`,
+threaded through both branches of `normalizeMasterData`, and written by
+`db.room.upsert` (create always sets it; update only overwrites when the JSON
+carries a non-empty value, so the seed's `VENUE_IMAGES` fallback still wins
+for codes the JSON omits).
+
+### ✅ Phase 8 — Sample BEO booking ID hardcoded to 2026
+**Symptom:** Re-seeding in a different calendar year left `BK-2026-1042` on
+the demo BEO even though `eventDate` shifted with the current week, making
+the ID look stale.
+**Fix:** booking id is now `` `BK-${eventDate.getFullYear()}-1042` ``.
+
+### ✅ Phase 8 — `MasterDataVersion` row never written by seed
+**Symptom:** The `MasterDataVersion` model existed but only the admin
+`POST /api/master-data` route ever wrote to it, so a fresh seed left the
+version table empty and the field looked unused.
+**Fix:** after `importMasterData` succeeds, the seed stamps the next
+monotonic `versionNum` with the raw JSON payload and a "Seed import" note.
 
 ### ✅ Phase 7 — Manager required at BEO-creation time blocked event entry
 **Symptom:** A BEO couldn't be saved without an assigned manager because
