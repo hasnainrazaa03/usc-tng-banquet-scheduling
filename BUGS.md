@@ -27,6 +27,28 @@ confirms the assignment lands on the right shift.
 
 ## Resolved (recent)
 
+### ✅ Phase 10.1 — Login showed "Invalid credentials" for all users
+**Symptom:** Every login attempt — including the seeded `admin@tng.usc.edu`
+/ `password123` — returned `401 Invalid credentials`.
+**Root cause:** Phase 10 rewrote `.env` to use a Neon URL whose role
+password had been rotated. Prisma threw `P1000: Authentication failed`
+on `authenticate()`'s `prisma.user.findUnique`; [/api/auth/login](src/app/api/auth/login/route.ts)
+swallows any error and returns the same generic 401 the password
+mismatch path uses, so the failure looked like a credential problem.
+**Fix:** `.env` reverted to the working local Postgres URL
+(`postgresql://tng:tng@localhost:5432/tng_scheduling`). Deployment guide
+([deployment.md](deployment.md)) step 3.5 now ships a one-liner that
+prints which host Prisma is actually connected to, so the next
+misconfiguration is diagnosable in seconds.
+
+### ✅ Phase 10.1 — Neon connection string committed in `deployment.md`
+**Symptom:** `git log -p deployment.md` exposed a live Neon URL and
+`AUTH_SECRET` in commit `c93c8f0`.
+**Fix:** Sanitized `deployment.md` to placeholders, `git rm --cached`
+the file, added it to `.gitignore`. Operators must rotate the Neon
+role password and regenerate `AUTH_SECRET` — git history retains the
+old values.
+
 ### ✅ Phase 10 — Vercel build `PrismaClientInitializationError`
 **Symptom:** Deploys failed during `Collecting page data for
 /api/ai/explain-assignment` with "Prisma has detected that this project

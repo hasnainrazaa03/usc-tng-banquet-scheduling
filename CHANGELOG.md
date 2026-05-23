@@ -12,6 +12,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Phase 10.1 — Removed leaked credentials from tracked docs.** The
+  Phase 10 commit (`c93c8f0`) included the live Neon connection string
+  and an `AUTH_SECRET` value inside the tracked `deployment.md`.
+  `deployment.md` has been rewritten to use placeholders only, then
+  removed from git tracking and added to `.gitignore`. The old
+  `docs/DEPLOYMENT.md` symlink was deleted so there is exactly one
+  deployment guide. **Operators must rotate the Neon role password and
+  regenerate `AUTH_SECRET`** — git history still contains the old
+  values.
+
+### Fixed
+- **Phase 10.1 — Login broken ("Invalid credentials").** Phase 10
+  rewrote `.env` to point at a Neon URL whose credentials returned
+  `P1000: Authentication failed`. Because [src/app/api/auth/login/route.ts](src/app/api/auth/login/route.ts)
+  surfaces any Prisma error as a generic `Invalid credentials` 401, the
+  login form looked like a password problem when it was really a DB
+  connection problem. `.env` now points back at the working local
+  Postgres URL by default; the deployment guide documents how to swap
+  in Neon once you have a valid pooled connection string. No user
+  records were lost — the local DB still has the 9 seeded users with
+  unchanged `password123` bcrypt hashes.
+
 ### Added
 - **Phase 10 — Unified Schedule Board.** The standalone "Generate
   Schedule" page is gone; its functionality lives on the board itself

@@ -97,13 +97,22 @@ npm run dev
 Open <http://localhost:3000>.
 
 ### 5. Deploy to a real server
-See [deployment.md](deployment.md) (also linked from
-[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)) for a step-by-step guide to
-deploying the app and PostgreSQL database to managed services (Vercel +
-Neon recommended; Render alternative covered). Includes sign-up flow,
-required environment variables (`DATABASE_URL`, `AUTH_SECRET`), the
-`prisma db push` + seed sequence, and a post-deploy verification
-checklist.
+Detailed deployment instructions live in **`deployment.md`** at the
+project root. That file is **gitignored** — it contains real Neon
+credentials and `AUTH_SECRET` values — so each operator maintains
+their own copy locally. To generate one, copy the template skeleton
+below into a new `deployment.md`:
+
+```bash
+# from the project root
+touch deployment.md
+open -e deployment.md
+```
+
+The guide covers: Neon signup + pooled connection string, `.env`
+template (`DATABASE_URL`, `AUTH_SECRET` via `openssl rand -base64 32`),
+Prisma `db push` / `generate` / seed, local dev, Vercel import +
+environment variables, and post-deploy verification.
 
 ### Demo accounts (password `password123`)
 | Email | Role |
