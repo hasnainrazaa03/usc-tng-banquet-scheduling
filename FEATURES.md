@@ -37,6 +37,7 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | Status | Feature | Owner | Since |
 | --- | --- | --- | --- |
 | ✅ | Server roster with classification, status, employee ID | `Server` model | v0.1 |
+| ✅ | Editable server records — row-level modal updates name/employee ID/hire date; hire-date edits recompute seniority across the roster inside a transaction | `src/app/(app)/servers/ServersTable.tsx`, `src/app/api/servers/[id]/route.ts`, `src/lib/seniority.ts` | Phase 10 |
 | ✅ | Real 32-employee roster (19 FT + 13 PT) with actual hire dates | `prisma/seed.ts` | v0.4 |
 | ✅ | `EmploymentType` enum (FULL_TIME / PART_TIME) | `prisma/schema.prisma` | v0.4 |
 | ✅ | Presidential Server honorific tracked via `Server.notes` + BANQUET_CAPTAIN classification | `prisma/seed.ts` | v0.4 |
@@ -70,6 +71,7 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | ✅ | Calendar-based week picker (replaces "Jump to" dropdown; snaps any date to its operational Thursday) | `src/app/(app)/schedule/board/components/WeekNavigator.tsx` | Phase 9 |
 | ✅ | Robust local-date parsing for `?week=YYYY-MM-DD` (fixes Today / Prev / Next drifting one week in negative-UTC timezones) | `src/lib/week-config.ts` (`parseLocalDate`) | Phase 9 |
 | ✅ | Board remounts on week change (`key={schedule.id}` on `<ScheduleBoard>`) — BEOs, counts, drawers all refresh correctly | `src/app/(app)/schedule/board/page.tsx` | Phase 9 |
+| ✅ | Unified Schedule Board — Run AI Schedule + Recent Schedules collapsible panel directly on the board (Generate Schedule tab removed) | `src/app/(app)/schedule/board/components/ScheduleOpsPanel.tsx` | Phase 10 |
 | 🚧 | Auto-assignment engine wiring (plugins → real assignments) | `src/lib/scheduling/engine.ts` | — |
 | 🧭 | ML / historical-learning hooks (read past schedules for preference signals) | — | — |
 

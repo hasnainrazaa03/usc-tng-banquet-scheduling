@@ -13,6 +13,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 10 — Unified Schedule Board.** The standalone "Generate
+  Schedule" page is gone; its functionality lives on the board itself
+  inside a new `ScheduleOpsPanel`
+  ([src/app/(app)/schedule/board/components/ScheduleOpsPanel.tsx](src/app/(app)/schedule/board/components/ScheduleOpsPanel.tsx)).
+  Two collapsible cards — **Run AI Schedule** and **Recent Schedules** —
+  sit directly above the day columns so managers can browse historical
+  weeks, kick off the AI auto-scheduler, and jump between sibling
+  schedules without leaving the board.
+- **Phase 10 — Collapsible sidebar.** [src/components/Sidebar.tsx](src/components/Sidebar.tsx)
+  now toggles between 256px and 64px widths, persists the choice in
+  `localStorage`, and uses `title` tooltips when collapsed. Toggle via
+  the `PanelLeftClose` / `PanelLeftOpen` icon in the header.
+- **Phase 10 — Editable Server Database.** New
+  [src/app/(app)/servers/ServersTable.tsx](src/app/(app)/servers/ServersTable.tsx)
+  renders a pencil button per row that opens a modal for first/last
+  name, employee ID, and hire date. Saving hits
+  [src/app/api/servers/[id]/route.ts](src/app/api/servers/%5Bid%5D/route.ts),
+  which runs a single `prisma.$transaction`: update server fields →
+  recompute `yearsOfService` / `seniorityScore` / `seniorityRank` for
+  every active server via [src/lib/seniority.ts](src/lib/seniority.ts) →
+  write an `AuditLog` entry. ADMIN / MANAGER only.
+- **Phase 10 — Root-level `deployment.md`.** Verbatim
+  Neon connection string, `.env` template,
+  `openssl rand -base64 32` AUTH_SECRET command, Vercel + Prisma fix
+  notes, and a manual-steps checklist.
+  `docs/DEPLOYMENT.md` is now a symlink to this canonical file.
+
+### Fixed
+- **Phase 10 — Vercel `PrismaClientInitializationError` during build.**
+  Vercel caches `node_modules` between builds, which left the generated
+  Prisma client out of sync with the committed schema and tripped
+  `Collecting page data for /api/ai/explain-assignment`. Fixed in
+  [package.json](package.json) by adding
+  `"postinstall": "prisma generate"` and changing
+  `"build"` to `"prisma generate && next build"` so every Vercel build
+  regenerates the client deterministically.
+
+### Removed
+- **Phase 10 — `/schedule/generate` route.** The page and its form are
+  deleted; the API route `/api/schedule/run` is retained because both
+  Fill Unassigned and the new in-board "Run AI Schedule" panel still
+  call it.
+
+---
+
+## [0.9.0] — Phase 9
+
+### Added
 - **Phase 9 — Calendar-based week picker on the schedule board.** A native
   `<input type="date">` replaces the old "Jump to" dropdown. Picking any
   date snaps the board to that day's Thursday → Wednesday operational

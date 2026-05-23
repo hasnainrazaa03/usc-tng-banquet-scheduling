@@ -25,6 +25,7 @@ import { RosterGrid } from "./components/RosterGrid";
 import { ServersDrawer } from "./components/ServersDrawer";
 import { ManagersDrawer } from "./components/ManagersDrawer";
 import { WeekNavigator } from "./components/WeekNavigator";
+import { ScheduleOpsPanel } from "./components/ScheduleOpsPanel";
 import { CalloutModal } from "./components/CalloutModal";
 import { DOW, dayKey, type BoardData, type Shift, type Assignment } from "./types";
 
@@ -425,6 +426,12 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
       <WeekNavigator
         weekStart={data.schedule.weekStart}
         weekEnd={data.schedule.weekEnd}
+        siblings={data.siblingSchedules ?? []}
+      />
+
+      <ScheduleOpsPanel
+        currentScheduleId={data.schedule.id}
+        currentWeekStart={data.schedule.weekStart}
         siblings={data.siblingSchedules ?? []}
       />
 

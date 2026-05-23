@@ -26,7 +26,9 @@ printable weekly roster that matches the operational paper format.
 - **Master data file** at [data/banquet_master_data.json](data/banquet_master_data.json) — locations, rooms, event/function types, setup templates, roles, qualifications, shift codes, status codes (OFF/VAC/MLA/SICK/HOLIDAY/TRAINING), staffing rules, seniority rules, fairness rules, print layout, default templates, common patterns. Versioned and editable from the Master Data Editor page.
 - **AI-assisted scheduling engine** ([src/lib/scheduling-engine.ts](src/lib/scheduling-engine.ts)) — filters by availability/time-off/qualifications, applies seniority preference, fairness tiebreakers, weekly hour cap, min-rest, no double-booking. Records explainable reasons on every assignment.
 - **Auto-schedule + manual editing** — generate, lock assignments, fill unassigned only, manual override
-- **Drag-and-drop schedule board** with sidebar of available servers, role-by-role drop slots, conflict detection, lock/unlock per assignment
+- **Drag-and-drop schedule board** with sidebar of available servers, role-by-role drop slots, conflict detection, lock/unlock per assignment. Phase 10 added an in-board **ScheduleOpsPanel** with collapsible **Run AI Schedule** and **Recent Schedules** cards, so the standalone "Generate Schedule" page is gone.
+- **Collapsible left sidebar (Phase 10)** — toggles between 256px and 64px to maximise board horizontal space; preference persists in `localStorage`.
+- **Editable Server Database (Phase 10)** — row-level Edit modal for name / employee ID / hire date; hire-date edits recompute seniority across the roster inside a single Prisma transaction.
 - **Manager drag-and-drop on the board (Phase 7)** — managers are no longer required at BEO-creation time. Coordinators save a BEO without one and assign later by dragging a manager pill from the new Managers drawer onto the BEO's manager slot on any shift card. Chips can be dragged between BEOs to reassign or X'd out to clear.
 - **Any-week navigation (Phase 7)** — the board page materialises a Thursday→Wednesday `Schedule` row on demand for whatever week the user is viewing, and auto-syncs every BEO in the DB whose `eventDate` lands in that window. Result: previous/next-week arrows work for every week of the year and BEOs already stored in the DB appear without anyone pressing "Generate Schedule" first.
 - **Printable weekly schedule** — servers down rows, days across columns, color-coded role/status cells, USC Cardinal header, revision date, meal-break reminder, status legend
@@ -95,7 +97,8 @@ npm run dev
 Open <http://localhost:3000>.
 
 ### 5. Deploy to a real server
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for a step-by-step guide to
+See [deployment.md](deployment.md) (also linked from
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)) for a step-by-step guide to
 deploying the app and PostgreSQL database to managed services (Vercel +
 Neon recommended; Render alternative covered). Includes sign-up flow,
 required environment variables (`DATABASE_URL`, `AUTH_SECRET`), the

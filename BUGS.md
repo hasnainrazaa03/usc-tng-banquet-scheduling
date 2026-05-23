@@ -27,6 +27,38 @@ confirms the assignment lands on the right shift.
 
 ## Resolved (recent)
 
+### ✅ Phase 10 — Vercel build `PrismaClientInitializationError`
+**Symptom:** Deploys failed during `Collecting page data for
+/api/ai/explain-assignment` with "Prisma has detected that this project
+was built on Vercel, which caches dependencies."
+**Root cause:** Vercel reuses `node_modules` between builds, so the
+generated `@prisma/client` falls out of sync with the schema and throws
+at PrismaClient construction time.
+**Fix:** [package.json](package.json) now declares
+`"postinstall": "prisma generate"` and `"build": "prisma generate && next build"`,
+guaranteeing the client is regenerated on every Vercel build.
+
+### ✅ Phase 10 — Generate Schedule duplicated the board
+**Symptom:** Two places ("Generate Schedule" tab + the board) could
+trigger AI runs; users had to leave the board to view recent schedules.
+**Fix:** `/schedule/generate` deleted; in-board
+[ScheduleOpsPanel](src/app/(app)/schedule/board/components/ScheduleOpsPanel.tsx)
+exposes Run AI Schedule + Recent Schedules.
+
+### ✅ Phase 10 — Sidebar consumed too much horizontal space
+**Symptom:** On 13" laptops the 256px sidebar squeezed the board.
+**Fix:** [Sidebar](src/components/Sidebar.tsx) collapses to a 64px icon
+rail with `localStorage`-persisted state.
+
+### ✅ Phase 10 — Server Database was read-only
+**Symptom:** Hire dates and employee IDs had to be fixed via a SQL
+console; seniority drifted out of sync.
+**Fix:** New row-level Edit modal in
+[ServersTable.tsx](src/app/(app)/servers/ServersTable.tsx) hits
+[/api/servers/[id]](src/app/api/servers/%5Bid%5D/route.ts), which runs
+update + full seniority recompute + audit log in a single
+`prisma.$transaction`.
+
 ### ✅ Phase 9 — Schedule board stuck on previous operational week
 **Symptom:** Today / Prev / Next on the board navigated to the wrong
 week. Specifically, "Today" landed on the **previous** Thursday→Wednesday
