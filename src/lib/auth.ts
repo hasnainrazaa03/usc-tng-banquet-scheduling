@@ -45,7 +45,18 @@ export async function getSession(): Promise<SessionUser | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, SECRET);
-    return payload as unknown as SessionUser;
+    const session = payload as unknown as SessionUser;
+    // Defend against stale cookies pointing at a userId that was wiped by a
+    // re-seed: verify the user still exists and is active before trusting
+    // the session. Without this, downstream `userId` FK writes (AuditLog,
+    // etc.) blow up with P2003 and 500 every request.
+    const user = await prisma.user.findUnique({
+      where: { id: session.id },
+      select: { id: true, active: true, role: true },
+    });
+    if (!user || !user.active) return null;
+    // Keep role fresh in case it changed since the JWT was issued.
+    return { ...session, role: user.role };
   } catch {
     return null;
   }
