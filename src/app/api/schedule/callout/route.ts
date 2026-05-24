@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  */
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await requireRole(["ADMIN", "MANAGER", "SUPERVISOR"]);
+    const session = await requireRole(["ADMIN", "MANAGER"]);
     const body = await req.json().catch(() => ({}));
     const { assignmentId, calledOut, reason } = body as {
       assignmentId?: string;

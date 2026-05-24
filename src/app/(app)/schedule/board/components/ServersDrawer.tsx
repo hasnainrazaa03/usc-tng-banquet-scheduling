@@ -47,7 +47,6 @@ export function ServersDrawer({
         (role === "SVR" && cls === "BANQUET_SERVER") ||
         (role === "AV" && cls === "AV_TECH") ||
         (role === "HSP" && cls === "HOUSEPERSON") ||
-        (role === "SUP" && cls.includes("SUPERVISOR")) ||
         cls.includes(role.toUpperCase());
       if (!ok) return false;
     }

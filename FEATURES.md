@@ -17,10 +17,11 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | Status | Feature | Owner | Since |
 | --- | --- | --- | --- |
 | ✅ | Cookie-based JWT auth (`jose` + `tng_session`) | `src/lib/auth.ts` | v0.1 |
-| ✅ | bcrypt password hashes; demo logins for ADMIN/MANAGER/SUPERVISOR | `prisma/seed.ts` | v0.1 |
+| ✅ | bcrypt password hashes; demo logins for ADMIN / MANAGER / SERVER | `prisma/seed.ts` | v0.4 |
+| ✅ | Three-role RBAC (`ADMIN` / `MANAGER` / `SERVER`) with role-filtered Sidebar nav and `requireRole` server-side gates | `src/lib/auth.ts`, `src/components/Sidebar.tsx` | v0.4 (Phase 11) |
+| ✅ | Server logins linked 1:1 with `Server` employee records (32 accounts) | `prisma/seed.ts` | v0.4 (Phase 11) |
 | ✅ | Named department managers (Juanita Gomez, Leticia Velasquez, Eddie Cuevas, Levi Flefil, Jovon O'Connor, Alonso Recinos) | `prisma/seed.ts` | v0.4 |
-| 🧭 | Role-scoped UI (hide Admin nav for non-admins) | `src/app/(app)/layout.tsx` | — |
-| 🧭 | Manager home-venue ownership persisted on `User` | schema | — |
+| ✅ | Manager home-venue ownership persisted on `User.homeVenueCodes` | schema | v0.4 |
 
 ## Master data
 
@@ -88,6 +89,8 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | 🚧 | Handwritten-changes annotation pipeline | `src/lib/import/staging.ts` | — |
 | ✅ | One-click BEO → Schedule shift generator (auto-sync on BEO create + bulk on Run) | `src/lib/beo-sync.ts`, `src/app/api/beos/route.ts`, `src/app/api/schedule/run/route.ts` | Phase 6 |
 | ✅ | Shift card surfaces event manager + guest count + venue inline | `src/app/(app)/schedule/board/components/ShiftCard.tsx` | Phase 6 |
+| ✅ | **BEO editing** — `/beos/[id]/edit` page (ADMIN/MANAGER) with status transitions (DRAFT/CONFIRMED/TENTATIVE/CANCELLED/COMPLETED); `PATCH /api/beos/[id]` with audit log + `syncBeoShifts` | `src/app/(app)/beos/[id]/edit/page.tsx`, `src/app/api/beos/[id]/route.ts` | Phase 11 |
+| ✅ | Seeded 10 additional realistic BEOs across ±4 operational weeks | `prisma/seed.ts` | Phase 11 |
 
 ## Reporting & print
 

@@ -226,10 +226,19 @@ async function main() {
     create: { email: "manager@tng.usc.edu", name: "Demo Manager", passwordHash: password, role: UserRole.MANAGER },
     update: { name: "Demo Manager", role: UserRole.MANAGER, active: true },
   });
+  // Phase 11: demo SERVER account. Replaces the previous SUPERVISOR demo —
+  // SUPERVISOR/EMPLOYEE were collapsed into SERVER. We still upsert the
+  // legacy supervisor@ email so any historical bookmarks redirect to a
+  // SERVER-role login instead of a broken role.
+  await prisma.user.upsert({
+    where: { email: "server@tng.usc.edu" },
+    create: { email: "server@tng.usc.edu", name: "Demo Server", passwordHash: password, role: UserRole.SERVER },
+    update: { name: "Demo Server", role: UserRole.SERVER, active: true },
+  });
   await prisma.user.upsert({
     where: { email: "supervisor@tng.usc.edu" },
-    create: { email: "supervisor@tng.usc.edu", name: "Demo Supervisor", passwordHash: password, role: UserRole.SUPERVISOR },
-    update: { name: "Demo Supervisor", role: UserRole.SUPERVISOR, active: true },
+    create: { email: "supervisor@tng.usc.edu", name: "Demo Server (legacy supervisor)", passwordHash: password, role: UserRole.SERVER },
+    update: { name: "Demo Server (legacy supervisor)", role: UserRole.SERVER, active: true },
   });
   for (const mgr of MANAGERS) {
     await prisma.user.upsert({
@@ -252,7 +261,15 @@ async function main() {
   console.log(`  ✓ 3 system users + ${MANAGERS.length} named managers`);
 
   // 4) Servers — real 32-employee roster.
-  console.log("→ Upserting Servers (32 real employees)…");
+  //
+  // Phase 11 normalisation: ALL banquet staff are stored with
+  // `classification = BANQUET_SERVER`. The previous breakdown
+  // (LEAD_BANQUET_CAPTAIN / BANQUET_CAPTAIN / BARTENDER / …) is preserved
+  // verbatim in `Server.notes` so we don't lose context, but the
+  // operational classification surfaced everywhere is just "Banquet
+  // Server". The JobClassification enum still has the other values for
+  // future use but the seed + UI deliberately don't reference them.
+  console.log("→ Upserting Servers (32 real employees, normalised to BANQUET_SERVER)…");
   const createdServers = [] as Array<{ id: string; hireDate: Date; firstName: string; lastName: string }>;
   for (let i = 0; i < ALL_SERVERS.length; i++) {
     const s = ALL_SERVERS[i];
@@ -266,6 +283,20 @@ async function main() {
     const presMatch = s.notes?.match(/Presidential Server #(\d+)/i);
     const presidentialRank = presMatch ? Number(presMatch[1]) : null;
 
+    // Phase 11: preserve the legacy classification label in `notes` so
+    // managers still see "was Captain" context, but force the canonical
+    // classification to BANQUET_SERVER everywhere.
+    const originalRoleLabel = s.classification
+      .replaceAll("_", " ")
+      .toLowerCase()
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+    const noteParts: string[] = [];
+    if (s.notes) noteParts.push(s.notes);
+    if (s.classification !== JobClassification.BANQUET_SERVER) {
+      noteParts.push(`Original classification: ${originalRoleLabel}`);
+    }
+    const mergedNotes = noteParts.length ? noteParts.join(" \u2014 ") : null;
+
     const server = await prisma.server.upsert({
       where: { employeeId },
       create: {
@@ -274,10 +305,10 @@ async function main() {
         lastName: s.lastName,
         email,
         hireDate,
-        classification: s.classification,
+        classification: JobClassification.BANQUET_SERVER,
         employmentType: s.employmentType,
         status: EmploymentStatus.ACTIVE,
-        notes: s.notes ?? null,
+        notes: mergedNotes,
         presidentialRank,
       },
       update: {
@@ -285,13 +316,47 @@ async function main() {
         lastName: s.lastName,
         email,
         hireDate,
-        classification: s.classification,
+        classification: JobClassification.BANQUET_SERVER,
         employmentType: s.employmentType,
         status: EmploymentStatus.ACTIVE,
-        notes: s.notes ?? null,
+        notes: mergedNotes,
         presidentialRank,
       },
     });
+
+    // Phase 11: every Server gets a linked User with role=SERVER so they
+    // can sign in and see their own schedule/availability. Email matches
+    // the Server's `email` field so password-reset paths line up later.
+    // We guard against collision with the named-manager emails (none
+    // overlap with the roster as of Phase 11, but the guard is cheap).
+    const existingMgrUser = await prisma.user.findUnique({ where: { email } });
+    if (existingMgrUser && existingMgrUser.role !== UserRole.SERVER) {
+      // A manager already owns this email — don't overwrite their role.
+      // Just link the Server to that existing User so logins still work.
+      await prisma.server.update({
+        where: { id: server.id },
+        data: { userId: existingMgrUser.id },
+      });
+    } else {
+      const serverUser = await prisma.user.upsert({
+        where: { email },
+        create: {
+          email,
+          name: `${s.firstName} ${s.lastName}`,
+          passwordHash: password,
+          role: UserRole.SERVER,
+        },
+        update: {
+          name: `${s.firstName} ${s.lastName}`,
+          role: UserRole.SERVER,
+          active: true,
+        },
+      });
+      await prisma.server.update({
+        where: { id: server.id },
+        data: { userId: serverUser.id },
+      });
+    }
     createdServers.push({ id: server.id, hireDate, firstName: s.firstName, lastName: s.lastName });
   }
   console.log(`  ✓ ${createdServers.length} servers (${FULL_TIME.length} FT, ${PART_TIME.length} PT)`);
@@ -495,11 +560,321 @@ async function main() {
     });
   }
 
+  // 8) Phase 11: 10 additional realistic BEOs spread across ±4 operational
+  //    weeks so the platform feels populated for QA. Idempotent via
+  //    `bookingId` so re-seeds don't duplicate. Each entry chooses a real
+  //    USC venue + room from the master data and a named manager whose
+  //    `homeVenueCodes` covers that venue.
+  console.log("→ Seeding 10 realistic BEOs across operational weeks…");
+  await seedExtraBeos(weekStart, adminUser.id);
+
   console.log("✓ Seed complete.");
-  console.log("  Login: admin@tng.usc.edu / password123  (ADMIN)");
-  console.log("  Login: manager@tng.usc.edu / password123 (MANAGER)");
-  console.log("  Login: supervisor@tng.usc.edu / password123 (SUPERVISOR)");
-  console.log("  Named manager logins: <firstname>.<lastname>@usc.edu / password123");
+  console.log("  Login: admin@tng.usc.edu / password123     (ADMIN)");
+  console.log("  Login: manager@tng.usc.edu / password123   (MANAGER)");
+  console.log("  Login: server@tng.usc.edu / password123    (SERVER — view-only)");
+  console.log("  Named manager logins: <firstname>.<lastname>@usc.edu / password123 (MANAGER)");
+  console.log("  Server logins:        <firstname>.<lastname>@usc.edu / password123 (SERVER)");
+}
+
+// ---------------------------------------------------------------------------
+// seedExtraBeos: idempotent 10-BEO sampler (Phase 11)
+// ---------------------------------------------------------------------------
+async function seedExtraBeos(weekStart: Date, adminUserId: string) {
+  // Helper: pick a room by code, fall back to first room at the location.
+  async function pickRoom(locationCode: string, roomCode?: string) {
+    const loc = await prisma.location.findUnique({ where: { code: locationCode } });
+    if (!loc) return null;
+    const room = roomCode
+      ? await prisma.room.findFirst({ where: { locationId: loc.id, code: roomCode } })
+      : await prisma.room.findFirst({ where: { locationId: loc.id } });
+    return room ? { location: loc, room } : { location: loc, room: null };
+  }
+  async function pickManagerByEmail(email: string) {
+    return prisma.user.findUnique({ where: { email } });
+  }
+  const today = new Date();
+
+  type ExtraBeo = {
+    bookingSuffix: string;
+    postAs: string;
+    account?: string;
+    contactName?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    onsiteContact?: string;
+    cateringManagerEmail?: string;
+    locationCode: string;
+    roomCode?: string;
+    daysFromWeekStart: number;   // negative or positive offset from current week's Thursday
+    startHHMM: string;
+    endHHMM: string;
+    expectedGuests: number;
+    menu: Record<string, string[]>;
+    setupNotes?: string;
+    specialInstructions?: string;
+    status: BEOStatus;
+    capCount: number;
+    svrCount: number;
+    barCount: number;
+    eventName: string;
+  };
+
+  const EXTRA_BEOS: ExtraBeo[] = [
+    // ---- This week (Thu→Wed) ----
+    {
+      bookingSuffix: "P11-001",
+      postAs: "Engineering Dean's Welcome Reception",
+      account: "Viterbi School of Engineering",
+      contactName: "Juanita Gomez", contactPhone: "213-555-0181", contactEmail: "juanita.gomez@usc.edu",
+      cateringManagerEmail: "juanita.gomez@usc.edu",
+      locationCode: "UCLUB-MAIN", roomCode: "UCLUB",
+      daysFromWeekStart: 1, startHHMM: "17:30", endHHMM: "20:30",
+      expectedGuests: 140,
+      menu: { reception: ["Heavy passed appetizers", "Charcuterie & cheese"], bar: ["Beer / wine bar"] },
+      setupNotes: "Cocktail tables, lounge clusters, two service bars",
+      status: BEOStatus.CONFIRMED, capCount: 1, svrCount: 5, barCount: 2,
+      eventName: "Reception",
+    },
+    {
+      bookingSuffix: "P11-002",
+      postAs: "Keck School Faculty Luncheon",
+      account: "Keck School of Medicine",
+      contactName: "Leticia Velasquez", contactPhone: "213-555-0162", contactEmail: "leticia.velasquez@usc.edu",
+      cateringManagerEmail: "leticia.velasquez@usc.edu",
+      locationCode: "HSC-MAIN", roomCode: "HSC-CC",
+      daysFromWeekStart: 4, startHHMM: "12:00", endHHMM: "14:00",
+      expectedGuests: 90,
+      menu: { plated: ["Mixed greens salad", "Salmon entrée", "Lemon tart"], bar: ["Non-alcoholic"] },
+      setupNotes: "Banquet rounds of 8, head table for 6",
+      specialInstructions: "Vegetarian count: 22 (confirmed)",
+      status: BEOStatus.CONFIRMED, capCount: 1, svrCount: 6, barCount: 0,
+      eventName: "Plated Luncheon",
+    },
+    // ---- Next week ----
+    {
+      bookingSuffix: "P11-003",
+      postAs: "Athletics Donor Tailgate",
+      account: "USC Athletics",
+      contactName: "Eddie Cuevas", contactPhone: "213-555-0143", contactEmail: "eddie.cuevas@usc.edu",
+      cateringManagerEmail: "eddie.cuevas@usc.edu",
+      locationCode: "UPC-MAIN", roomCode: "TNG",
+      daysFromWeekStart: 8, startHHMM: "15:00", endHHMM: "19:00",
+      expectedGuests: 320,
+      menu: { stations: ["BBQ station", "Carving station", "Slider bar"], bar: ["Full premium bar"] },
+      setupNotes: "Buffet stations × 4, 6 cocktail bars, lounge furniture",
+      status: BEOStatus.CONFIRMED, capCount: 2, svrCount: 18, barCount: 6,
+      eventName: "Tailgate Reception",
+    },
+    {
+      bookingSuffix: "P11-004",
+      postAs: "Marshall MBA Welcome Dinner",
+      account: "Marshall School of Business",
+      contactName: "Levi Flefil", contactPhone: "213-555-0144", contactEmail: "levi.flefil@usc.edu",
+      cateringManagerEmail: "levi.flefil@usc.edu",
+      locationCode: "UPC-MAIN", roomCode: "TNG",
+      daysFromWeekStart: 11, startHHMM: "18:00", endHHMM: "22:00",
+      expectedGuests: 180,
+      menu: { plated: ["Burrata", "Filet & risotto", "Tiramisu"], bar: ["House open bar"] },
+      setupNotes: "Rounds of 10, ambient uplighting, AV podium",
+      status: BEOStatus.CONFIRMED, capCount: 1, svrCount: 12, barCount: 3,
+      eventName: "Plated Dinner",
+    },
+    {
+      bookingSuffix: "P11-005",
+      postAs: "USC Hotel Boardroom Breakfast",
+      account: "Office of the Provost",
+      contactName: "Jovon O'Connor", contactPhone: "213-555-0177", contactEmail: "jovon.oconnor@usc.edu",
+      cateringManagerEmail: "jovon.oconnor@usc.edu",
+      locationCode: "USCH-MAIN", roomCode: "HOTEL-1880",
+      daysFromWeekStart: 9, startHHMM: "07:30", endHHMM: "09:30",
+      expectedGuests: 24,
+      menu: { breakfast: ["Continental + hot buffet"], beverage: ["Coffee / tea / juice"] },
+      setupNotes: "Single U-shape, projector + microphones",
+      status: BEOStatus.TENTATIVE, capCount: 1, svrCount: 2, barCount: 0,
+      eventName: "Boardroom Breakfast",
+    },
+    // ---- Two weeks out ----
+    {
+      bookingSuffix: "P11-006",
+      postAs: "Vineyard Wedding Reception (Alvarez/Patel)",
+      account: "Private — Alvarez/Patel",
+      contactName: "Alonso Recinos", contactPhone: "213-555-0199", contactEmail: "alonso.recinos@usc.edu",
+      cateringManagerEmail: "alonso.recinos@usc.edu",
+      locationCode: "UPC-MAIN", roomCode: "VINEYARD",
+      daysFromWeekStart: 16, startHHMM: "17:00", endHHMM: "23:30",
+      expectedGuests: 210,
+      menu: { reception: ["Cocktail hour passed apps"], plated: ["Salad", "Choice of beef / fish / veg", "Wedding cake"], bar: ["Premium open bar"] },
+      setupNotes: "Sweetheart table + 21 rounds of 10, dance floor 30×30",
+      specialInstructions: "Allergen list provided — see special-meals tab",
+      status: BEOStatus.CONFIRMED, capCount: 2, svrCount: 14, barCount: 4,
+      eventName: "Wedding Reception",
+    },
+    {
+      bookingSuffix: "P11-007",
+      postAs: "Annenberg Alumni Mixer",
+      account: "Annenberg School for Communication",
+      contactName: "Juanita Gomez", contactPhone: "213-555-0181", contactEmail: "juanita.gomez@usc.edu",
+      cateringManagerEmail: "juanita.gomez@usc.edu",
+      locationCode: "UCLUB-MAIN", roomCode: "SCRIPTORIUM",
+      daysFromWeekStart: 15, startHHMM: "18:30", endHHMM: "21:30",
+      expectedGuests: 95,
+      menu: { reception: ["Light passed apps", "Antipasto board"], bar: ["Beer / wine / signature cocktail"] },
+      status: BEOStatus.CONFIRMED, capCount: 1, svrCount: 4, barCount: 2,
+      eventName: "Alumni Mixer",
+    },
+    // ---- Last week (history) ----
+    {
+      bookingSuffix: "P11-008",
+      postAs: "Trustees Quarterly Briefing",
+      account: "USC Office of the President",
+      contactName: "Eddie Cuevas", contactPhone: "213-555-0143", contactEmail: "eddie.cuevas@usc.edu",
+      cateringManagerEmail: "eddie.cuevas@usc.edu",
+      locationCode: "UPC-MAIN", roomCode: "TNG",
+      daysFromWeekStart: -4, startHHMM: "11:00", endHHMM: "14:00",
+      expectedGuests: 60,
+      menu: { plated: ["Caesar salad", "Chicken paillard", "Sorbet"], beverage: ["Coffee / tea"] },
+      setupNotes: "Single long boardroom table",
+      status: BEOStatus.COMPLETED, capCount: 1, svrCount: 4, barCount: 0,
+      eventName: "Working Lunch",
+    },
+    // ---- Three weeks out ----
+    {
+      bookingSuffix: "P11-009",
+      postAs: "USC Health Sciences Holiday Reception",
+      account: "Keck School of Medicine",
+      contactName: "Leticia Velasquez", contactPhone: "213-555-0162", contactEmail: "leticia.velasquez@usc.edu",
+      cateringManagerEmail: "leticia.velasquez@usc.edu",
+      locationCode: "HSC-MAIN", roomCode: "HSC-CC",
+      daysFromWeekStart: 22, startHHMM: "17:00", endHHMM: "20:00",
+      expectedGuests: 250,
+      menu: { reception: ["Holiday passed apps", "Carving station", "Dessert display"], bar: ["Wine / beer / spiced cider"] },
+      setupNotes: "Cocktail rounds, 3 service bars, stage for keynote",
+      status: BEOStatus.CONFIRMED, capCount: 2, svrCount: 12, barCount: 4,
+      eventName: "Holiday Reception",
+    },
+    {
+      bookingSuffix: "P11-010",
+      postAs: "Trojan Family Brunch",
+      account: "USC Alumni Association",
+      contactName: "Juanita Gomez", contactPhone: "213-555-0181", contactEmail: "juanita.gomez@usc.edu",
+      cateringManagerEmail: "juanita.gomez@usc.edu",
+      locationCode: "UCLUB-MAIN", roomCode: "UCLUB",
+      daysFromWeekStart: 23, startHHMM: "10:00", endHHMM: "13:00",
+      expectedGuests: 175,
+      menu: { brunch: ["Omelette station", "Carving station", "Mimosa bar"] },
+      setupNotes: "Buffet stations × 3, family-style rounds",
+      status: BEOStatus.CONFIRMED, capCount: 1, svrCount: 8, barCount: 2,
+      eventName: "Brunch Buffet",
+    },
+  ];
+
+  // Ensure a Schedule row exists for every operational week these BEOs land
+  // in so syncBeoShifts has a destination.
+  const weekStartsNeeded = new Set<string>();
+  for (const b of EXTRA_BEOS) {
+    const wd = startOfOperationalWeek(addDays(weekStart, b.daysFromWeekStart));
+    weekStartsNeeded.add(wd.toISOString().slice(0, 10));
+  }
+  for (const wsIso of weekStartsNeeded) {
+    const ws = new Date(wsIso + "T00:00:00");
+    const existing = await prisma.schedule.findFirst({ where: { weekStart: ws } });
+    if (!existing) {
+      await prisma.schedule.create({
+        data: {
+          name: `Week of ${wsIso}`,
+          weekStart: ws,
+          weekEnd: addDays(ws, 6),
+          status: ScheduleStatus.DRAFT,
+          notes: "Operational week auto-created for Phase 11 BEO seeding",
+          revisionDate: today,
+          createdBy: adminUserId,
+        },
+      });
+    }
+  }
+
+  const capRole = await prisma.role.findUnique({ where: { code: "CAP" } });
+  const svrRole = await prisma.role.findUnique({ where: { code: "SVR" } });
+  const barRole = await prisma.role.findUnique({ where: { code: "BAR" } });
+
+  let created = 0;
+  for (const b of EXTRA_BEOS) {
+    const bookingId = `BK-${today.getFullYear()}-${b.bookingSuffix}`;
+    if (await prisma.bEO.findUnique({ where: { bookingId } })) continue;
+
+    const venue = await pickRoom(b.locationCode, b.roomCode);
+    if (!venue) {
+      console.warn(`  ! Location ${b.locationCode} not found — skipping BEO ${bookingId}`);
+      continue;
+    }
+    const manager = b.cateringManagerEmail ? await pickManagerByEmail(b.cateringManagerEmail) : null;
+    const eventDate = addDays(weekStart, b.daysFromWeekStart);
+
+    const beo = await prisma.bEO.create({
+      data: {
+        bookingId,
+        postAs: b.postAs,
+        account: b.account,
+        contactName: b.contactName,
+        contactPhone: b.contactPhone,
+        contactEmail: b.contactEmail,
+        onsiteContact: b.onsiteContact,
+        cateringManager: b.contactName,
+        locationId: venue.location.id,
+        roomId: venue.room?.id,
+        managerId: manager?.id,
+        eventDate,
+        startTime: atTime(eventDate, b.startHHMM),
+        endTime: atTime(eventDate, b.endHHMM),
+        expectedGuests: b.expectedGuests,
+        menu: b.menu,
+        setupNotes: b.setupNotes,
+        specialInstructions: b.specialInstructions,
+        status: b.status,
+        revisionDate: today,
+      },
+    });
+
+    // Materialise a single Event + Shift so the board lights up.
+    if (venue.room) {
+      const ev = await prisma.event.create({
+        data: {
+          beoId: beo.id,
+          roomId: venue.room.id,
+          name: b.eventName,
+          startsAt: atTime(eventDate, b.startHHMM),
+          endsAt: atTime(eventDate, b.endHHMM),
+          guests: b.expectedGuests,
+        },
+      });
+      const weekStartForBeo = startOfOperationalWeek(eventDate);
+      const sched = await prisma.schedule.findFirst({ where: { weekStart: weekStartForBeo } });
+      if (sched) {
+        await prisma.shift.create({
+          data: {
+            scheduleId: sched.id,
+            eventId: ev.id,
+            date: atTime(eventDate, "00:00"),
+            startsAt: atTime(eventDate, b.startHHMM),
+            endsAt: atTime(eventDate, b.endHHMM),
+            locationCode: venue.location.code,
+            roomCode: venue.room.code,
+            label: b.eventName,
+            statusCode: ShiftStatusCode.NONE,
+            requirements: {
+              create: [
+                ...(capRole && b.capCount > 0 ? [{ roleId: capRole.id, count: b.capCount }] : []),
+                ...(svrRole && b.svrCount > 0 ? [{ roleId: svrRole.id, count: b.svrCount }] : []),
+                ...(barRole && b.barCount > 0 ? [{ roleId: barRole.id, count: b.barCount }] : []),
+              ],
+            },
+          },
+        });
+      }
+    }
+    created++;
+  }
+  console.log(`  ✓ ${created} additional BEOs created`);
 }
 
 main()

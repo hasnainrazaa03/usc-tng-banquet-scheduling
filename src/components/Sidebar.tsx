@@ -22,18 +22,30 @@ import {
  * are now part of the Schedule Board (`ScheduleOpsPanel`).
  */
 
+/**
+ * Phase 11: collapsed to three roles (ADMIN / MANAGER / SERVER). Each NAV
+ * entry lists the roles allowed to *see* the link. Pages also enforce
+ * role gates server-side via `requireRole` so the sidebar is purely a UX
+ * surface, not a security boundary.
+ *
+ * Server-only "My Shifts" (/schedule/print?onlyMine=1) is exposed at the
+ * top of the SERVER nav so the most common server action is one click.
+ */
 const NAV: { href: string; label: string; icon: any; roles: UserRole[] }[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["ADMIN","MANAGER","SUPERVISOR","EMPLOYEE"] },
-  { href: "/beos", label: "BEOs", icon: ClipboardList, roles: ["ADMIN","MANAGER","SUPERVISOR"] },
-  { href: "/beos/import", label: "BEO Import", icon: Upload, roles: ["ADMIN","MANAGER"] },
-  { href: "/locations", label: "Venues", icon: MapPin, roles: ["ADMIN","MANAGER"] },
-  { href: "/servers", label: "Server Database", icon: Users, roles: ["ADMIN","MANAGER","SUPERVISOR"] },
-  { href: "/seniority", label: "Seniority", icon: Award, roles: ["ADMIN","MANAGER"] },
-  { href: "/availability", label: "Availability", icon: CalendarCheck, roles: ["ADMIN","MANAGER","SUPERVISOR","EMPLOYEE"] },
-  { href: "/time-off", label: "Time-Off Requests", icon: CalendarClock, roles: ["ADMIN","MANAGER","SUPERVISOR","EMPLOYEE"] },
-  { href: "/schedule/board", label: "Schedule Board", icon: GanttChartSquare, roles: ["ADMIN","MANAGER","SUPERVISOR"] },
-  { href: "/schedule/print", label: "Printable Schedule", icon: Printer, roles: ["ADMIN","MANAGER","SUPERVISOR","EMPLOYEE"] },
-  { href: "/audit", label: "Audit Log", icon: ScrollText, roles: ["ADMIN","MANAGER"] },
+  { href: "/dashboard",            label: "Dashboard",          icon: LayoutDashboard,  roles: ["ADMIN","MANAGER","SERVER"] },
+  { href: "/schedule/print",       label: "My Schedule",        icon: Printer,          roles: ["SERVER"] },
+  { href: "/availability",         label: "My Availability",    icon: CalendarCheck,    roles: ["SERVER"] },
+  { href: "/time-off",             label: "My Time-Off",        icon: CalendarClock,    roles: ["SERVER"] },
+  { href: "/beos",                 label: "BEOs",               icon: ClipboardList,    roles: ["ADMIN","MANAGER"] },
+  { href: "/beos/import",          label: "BEO Import",         icon: Upload,           roles: ["ADMIN","MANAGER"] },
+  { href: "/locations",            label: "Venues",             icon: MapPin,           roles: ["ADMIN","MANAGER"] },
+  { href: "/servers",              label: "Server Database",    icon: Users,            roles: ["ADMIN","MANAGER"] },
+  { href: "/seniority",            label: "Seniority",          icon: Award,            roles: ["ADMIN","MANAGER"] },
+  { href: "/availability",         label: "Availability",       icon: CalendarCheck,    roles: ["ADMIN","MANAGER"] },
+  { href: "/time-off",             label: "Time-Off Requests",  icon: CalendarClock,    roles: ["ADMIN","MANAGER"] },
+  { href: "/schedule/board",       label: "Schedule Board",     icon: GanttChartSquare, roles: ["ADMIN","MANAGER"] },
+  { href: "/schedule/print",       label: "Printable Schedule", icon: Printer,          roles: ["ADMIN","MANAGER"] },
+  { href: "/audit",                label: "Audit Log",          icon: ScrollText,       roles: ["ADMIN"] },
 ];
 
 const COLLAPSED_KEY = "usc-pec-sidebar-collapsed";

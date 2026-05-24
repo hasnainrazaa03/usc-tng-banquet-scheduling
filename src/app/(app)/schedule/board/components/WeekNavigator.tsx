@@ -42,7 +42,12 @@ export function WeekNavigator({
   const current = parseLocalDate(weekStart);
 
   function go(dateIso: string) {
+    // Phase 11: chase `push` with a `refresh()` so the RSC payload for the
+    // new week is re-fetched even if Next's router cache decides the URL
+    // alone is unchanged enough to skip the fetch. This makes Prev/Next/
+    // calendar-picker deterministically advance one operational week.
     router.push(`/schedule/board?week=${dateIso}`);
+    router.refresh();
   }
 
   function jump(direction: "prev" | "next" | "today") {

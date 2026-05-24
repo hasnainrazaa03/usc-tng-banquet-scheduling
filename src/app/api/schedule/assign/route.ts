@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 /** POST { shiftId, serverId, roleCode } — manual assign */
 export async function POST(req: NextRequest) {
-  const session = await requireRole(["ADMIN", "MANAGER", "SUPERVISOR"]);
+  const session = await requireRole(["ADMIN", "MANAGER"]);
   const { shiftId, serverId, roleCode } = await req.json();
   if (!shiftId || !serverId) return NextResponse.json({ error: "Missing shiftId/serverId" }, { status: 400 });
 
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
 /** DELETE ?id=<assignmentId> */
 export async function DELETE(req: NextRequest) {
-  const session = await requireRole(["ADMIN", "MANAGER", "SUPERVISOR"]);
+  const session = await requireRole(["ADMIN", "MANAGER"]);
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
   const before = await prisma.shiftAssignment.findUnique({ where: { id } });
@@ -64,7 +64,7 @@ export async function DELETE(req: NextRequest) {
 
 /** PATCH { id, locked?, acknowledged?, roleCode? } */
 export async function PATCH(req: NextRequest) {
-  const session = await requireRole(["ADMIN", "MANAGER", "SUPERVISOR", "EMPLOYEE"]);
+  const session = await requireRole(["ADMIN", "MANAGER", "SERVER"]);
   const { id, locked, acknowledged, roleCode } = await req.json();
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
   const updated = await prisma.shiftAssignment.update({

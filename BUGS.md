@@ -27,6 +27,28 @@ confirms the assignment lands on the right shift.
 
 ## Resolved (recent)
 
+### ✅ Phase 11 — BEO records were view-only
+**Symptom:** Managers had no way to correct a typo, change a venue, or
+mark a BEO COMPLETED without re-creating it from scratch.
+**Fix:** Added `PATCH /api/beos/[id]` + `/beos/[id]/edit` page with
+status dropdown. Triggers `syncBeoShifts` so board reflects changes
+immediately. Audited via `AuditLog.action = BEO_UPDATE`.
+
+### ✅ Phase 11 — four-role RBAC didn't match operational reality
+**Symptom:** SUPERVISOR / EMPLOYEE roles had overlapping permissions
+that were never actually used; sidebar leaked nav entries to users
+who couldn't act on them.
+**Fix:** Collapsed `UserRole` to `{ ADMIN, MANAGER, SERVER }`. Swept
+every `requireRole` call site; role-filtered Sidebar. Legacy
+`supervisor@tng.usc.edu` still resolves (now `role = SERVER`).
+
+### ✅ Phase 11 — "Banquet Server" was buried under enum variants
+**Symptom:** Roster surfaced LEAD_BANQUET_CAPTAIN / BARTENDER etc. on
+pages that operationally only care that someone is a banquet server.
+**Fix:** All `Server.classification` rows seeded as `BANQUET_SERVER`;
+original label preserved in `Server.notes`. UI shows "Banquet Server"
+everywhere.
+
 ### ✅ Phase 10.2 — Vercel build crashed during static prerender
 **Symptom:** `vercel build` failed at `Generating static pages` with
 `prisma.location.findMany() ... The table public.Location does not exist`.

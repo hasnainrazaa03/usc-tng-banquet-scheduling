@@ -80,7 +80,7 @@ export default function LoginPage() {
           </button>
           <div className="text-xs text-ink-muted">
             Demo accounts (password: <code className="font-mono">password123</code>):<br />
-            <span className="font-mono">admin@tng.usc.edu</span> · <span className="font-mono">manager@tng.usc.edu</span> · <span className="font-mono">supervisor@tng.usc.edu</span>
+            <span className="font-mono">admin@tng.usc.edu</span> · <span className="font-mono">manager@tng.usc.edu</span> · <span className="font-mono">server@tng.usc.edu</span>
           </div>
         </form>
       </section>

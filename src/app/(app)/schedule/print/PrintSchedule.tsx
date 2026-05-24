@@ -290,7 +290,6 @@ export default function PrintSchedule({
             BBK: "Barback",
             HSP: "Houseperson",
             AV: "AV Tech",
-            SUP: "Supervisor",
           }).map(([k, v]) => (
             <div key={k} className={`px-1 py-0.5 rounded border ${ROLE_BG[k] ?? "bg-white border-ink/15"}`}>
               <strong>{k}</strong> {v}

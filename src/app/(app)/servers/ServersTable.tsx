@@ -107,9 +107,10 @@ export default function ServersTable({ servers }: { servers: ServerRow[] }) {
                 </td>
                 <td className="px-4 py-3 font-mono">{s.employeeId}</td>
                 <td className="px-4 py-3">
-                  <span className="pill bg-ink/5">
-                    {s.classification.replaceAll("_", " ")}
-                  </span>
+                  {/* Phase 11: every banquet staff member is classified as
+                      "Banquet Server" regardless of the underlying enum.
+                      The original DB value is preserved in `notes`. */}
+                  <span className="pill bg-ink/5">Banquet Server</span>
                 </td>
                 <td className="px-4 py-3">{fmtHireDate(new Date(s.hireDate))}</td>
                 <td className="px-4 py-3">

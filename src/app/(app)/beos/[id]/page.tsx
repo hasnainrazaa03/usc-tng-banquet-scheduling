@@ -1,11 +1,16 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth";
 import { fmtDate, fmtTime } from "@/lib/utils";
+import { Pencil } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function BEODetailPage({ params }: { params: { id: string } }) {
+  const session = await getSession();
+  const canEdit = session?.role === "ADMIN" || session?.role === "MANAGER";
+
   const beo = await prisma.bEO.findUnique({
     where: { id: params.id },
     include: { location: true, sections: true, events: true },
@@ -22,7 +27,17 @@ export default async function BEODetailPage({ params }: { params: { id: string }
             {beo.account ?? "—"} · {beo.bookingId ?? "—"} {beo.uepaNumber ? `· UEPA ${beo.uepaNumber}` : ""}
           </p>
         </div>
-        <span className="pill bg-cardinal text-white px-3 py-1">{beo.status}</span>
+        <div className="flex items-center gap-2">
+          <span className="pill bg-cardinal text-white px-3 py-1">{beo.status}</span>
+          {canEdit && (
+            <Link
+              href={`/beos/${beo.id}/edit`}
+              className="btn-primary inline-flex items-center gap-2"
+            >
+              <Pencil className="h-4 w-4" /> Edit BEO
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">

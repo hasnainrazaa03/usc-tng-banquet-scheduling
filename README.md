@@ -32,7 +32,7 @@ printable weekly roster that matches the operational paper format.
 - **Manager drag-and-drop on the board (Phase 7)** — managers are no longer required at BEO-creation time. Coordinators save a BEO without one and assign later by dragging a manager pill from the new Managers drawer onto the BEO's manager slot on any shift card. Chips can be dragged between BEOs to reassign or X'd out to clear.
 - **Any-week navigation (Phase 7)** — the board page materialises a Thursday→Wednesday `Schedule` row on demand for whatever week the user is viewing, and auto-syncs every BEO in the DB whose `eventDate` lands in that window. Result: previous/next-week arrows work for every week of the year and BEOs already stored in the DB appear without anyone pressing "Generate Schedule" first.
 - **Printable weekly schedule** — servers down rows, days across columns, color-coded role/status cells, USC Cardinal header, revision date, meal-break reminder, status legend
-- **Role-based access** — Admin, Manager, Supervisor, Employee
+- **Role-based access (Phase 11)** — three roles: **Admin** (full system access), **Manager** (BEOs, schedules, time-off approvals, server assignment), **Server** (view own schedule, edit own availability, request own time-off). Sidebar nav and `requireRole` server gates enforce the policy end-to-end.
 - **Audit log** for every schedule change, BEO update, master data save
 - **Seed data**: 20 servers across ~21 years of tenure, sample BEO (Dornsife Donor Gala), generated schedule + shifts, time-off request, demo accounts
 
@@ -119,8 +119,9 @@ environment variables, and post-deploy verification.
 | --- | --- |
 | `admin@tng.usc.edu` | ADMIN |
 | `manager@tng.usc.edu` | MANAGER |
-| `supervisor@tng.usc.edu` | SUPERVISOR |
-| any `firstname.lastname<n>@tng.usc.edu` from the seed | EMPLOYEE |
+| `server@tng.usc.edu` | SERVER |
+| any `firstname.lastname@usc.edu` from the 32-server roster | SERVER |
+| named department managers (e.g. `eddie.cuevas@usc.edu`) | MANAGER |
 
 ---
 

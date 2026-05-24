@@ -19,11 +19,14 @@ datasource db {
 // Identity & roles
 // ────────────────────────────────────────────────────────────────────────────
 
+// Phase 11: simplified to three roles. SUPERVISOR / EMPLOYEE were collapsed
+// into SERVER so the platform mirrors the operational reality (Admin sets
+// configuration, Manager runs the floor, Server views own schedule &
+// availability). See docs in CHANGELOG.md / FEATURES.md.
 enum UserRole {
   ADMIN
   MANAGER
-  SUPERVISOR
-  EMPLOYEE
+  SERVER
 }
 
 model User {
@@ -31,7 +34,7 @@ model User {
   email         String   @unique
   passwordHash  String
   name          String
-  role          UserRole @default(EMPLOYEE)
+  role          UserRole @default(SERVER)
   active        Boolean  @default(true)
   // Venue codes a manager has operational ownership of (e.g. ["TNG","VINEYARD"]).
   // Empty for non-manager users. Used by future ManagerScopeFilter so a manager

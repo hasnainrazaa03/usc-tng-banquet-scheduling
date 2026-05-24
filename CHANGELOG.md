@@ -12,6 +12,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Phase 11 — BEO editing.** New `/beos/[id]/edit` page (ADMIN/MANAGER only)
+  with full form coverage of every editable field plus a status dropdown
+  (DRAFT / CONFIRMED / TENTATIVE / CANCELLED / COMPLETED). Backed by
+  `PATCH /api/beos/[id]` which validates booking-ID uniqueness, accepts
+  partial updates, re-stamps `revisionDate`, invokes `syncBeoShifts` so
+  the board reflects date/time/location changes immediately, and writes
+  an `AuditLog` entry with before/after snapshots.
+- **Phase 11 — 10 additional realistic BEOs in the seed**, spread across
+  ±4 operational weeks (Engineering reception, Keck luncheon, Athletics
+  tailgate, Marshall MBA dinner, hotel breakfast, vineyard wedding,
+  Annenberg mixer, trustees lunch, HSC holiday reception, Trojan Family
+  brunch). Each gets a Schedule + Event + Shift with appropriate role
+  counts so the board and reports show populated data on fresh installs.
+- **Phase 11 — every Server gets a linked User**. Server logins
+  (`firstname.lastname@usc.edu` / `password123`) now exist for all 32
+  roster members so the SERVER role can actually be used end-to-end.
+
+### Changed
+- **Phase 11 — RBAC collapsed to three roles.** `UserRole` is now
+  `{ ADMIN, MANAGER, SERVER }` (was 4 values). SUPERVISOR and EMPLOYEE
+  were collapsed into SERVER because the operational reality is three
+  tiers — admins configure the system, managers run the floor, servers
+  view their own schedule / availability / time-off. Every
+  `requireRole([…, "SUPERVISOR"])` call site has been swept; the
+  Sidebar nav now ships role-filtered entries (Servers only see
+  Dashboard / My Schedule / My Availability / My Time-Off) and the
+  login page demo-account hint reflects the new role names. Legacy
+  `supervisor@tng.usc.edu` still resolves — it's upserted with
+  `role = SERVER` so historical bookmarks redirect cleanly.
+- **Phase 11 — all banquet staff normalised to "Banquet Server".**
+  Every `Server.classification` is forced to `BANQUET_SERVER` in the
+  seed (the original label is preserved in `Server.notes` as
+  `Original classification: …`). The Server Database table now always
+  displays "Banquet Server" regardless of the underlying enum value.
+  The `JobClassification` enum itself stays intact in the schema for
+  future use.
+- **Phase 11 — week navigation now chases `router.push` with
+  `router.refresh()`** so Prev/Next/calendar-picker deterministically
+  reload the RSC payload for the new operational week, even if Next's
+  router cache would otherwise skip the fetch.
+
 ### Fixed
 - **Phase 10.2 — Vercel production build no longer crashes on prerender.**
   Next.js was statically prerendering API route GET handlers (`/api/options`,

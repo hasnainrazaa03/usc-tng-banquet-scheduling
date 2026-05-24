@@ -27,7 +27,7 @@ function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
 
 export async function POST(req: NextRequest) {
   try {
-    await requireRole(["ADMIN", "MANAGER", "SUPERVISOR"]);
+    await requireRole(["ADMIN", "MANAGER"]);
     const body = await req.json().catch(() => ({}));
     const { assignmentId, limit } = body as { assignmentId?: string; limit?: number };
     if (!assignmentId) {

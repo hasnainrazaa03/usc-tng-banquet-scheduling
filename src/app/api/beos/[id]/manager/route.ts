@@ -19,7 +19,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const session = await requireRole(["ADMIN", "MANAGER", "SUPERVISOR"]);
+  const session = await requireRole(["ADMIN", "MANAGER"]);
   let body: unknown;
   try {
     body = await req.json();
