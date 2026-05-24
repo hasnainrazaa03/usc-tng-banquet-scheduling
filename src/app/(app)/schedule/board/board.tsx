@@ -472,6 +472,12 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
             <Printer className="h-4 w-4" />
             Print
           </Link>
+          <a
+            href={`/api/export?kind=schedule&scheduleId=${data.schedule.id}`}
+            className="btn-outline"
+          >
+            Export CSV
+          </a>
         </div>
       </div>
 

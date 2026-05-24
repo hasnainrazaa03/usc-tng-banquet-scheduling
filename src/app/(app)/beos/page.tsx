@@ -20,6 +20,7 @@ export default async function BEOListPage() {
         <div className="flex gap-2">
           <Link href="/beos/new" className="btn-primary"><Plus className="h-4 w-4" />New BEO</Link>
           <Link href="/beos/import" className="btn-outline"><Upload className="h-4 w-4" />Import</Link>
+          <a href="/api/export?kind=beos" className="btn-outline">Export CSV</a>
         </div>
       </div>
 

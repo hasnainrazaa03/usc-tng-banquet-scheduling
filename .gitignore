@@ -20,6 +20,9 @@ next-env.d.ts
 # Deployment notes — contains real Neon URL + AUTH_SECRET; never commit.
 deployment.md
 
+# Phase 13 manual setup guide — contains step-by-step secret/config notes.
+MANUAL_SETUP.md
+
 # Logs
 *.log
 npm-debug.log*

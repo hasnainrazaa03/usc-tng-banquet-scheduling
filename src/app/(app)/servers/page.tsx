@@ -41,6 +41,7 @@ export default async function ServersPage() {
             recompute seniority for the whole roster in one transaction.
           </p>
         </div>
+        <a href="/api/export?kind=servers" className="btn-outline">Export CSV</a>
       </div>
       <ServersTable servers={servers} />
     </div>

@@ -46,7 +46,7 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | ✅ | Seniority records auto-computed from hireDate; ranked 1..N | `prisma/seed.ts` | v0.3 |
 | 🧭 | Availability editor UI | — | — |
 | ✅ | Availability editor — click-to-edit per (server × weekday) matrix | `src/app/(app)/availability/editor.tsx`, `src/app/api/availability/route.ts` | Phase 9 |
-| 🧭 | Time-off request workflow (approve/deny) | `TimeOffRequest` model | — |
+| ✅ | Time-off request workflow (approve/deny) | `src/app/api/time-off/[id]/route.ts`, `src/app/(app)/time-off/TimeOffTable.tsx` | Phase 13 |
 
 ## Scheduling
 
@@ -101,8 +101,8 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | Status | Feature | Owner | Since |
 | --- | --- | --- | --- |
 | ✅ | Weekly print layout with Thu-first columns | master data `printLayout` | v0.3 |
-| 🧭 | Per-venue group filter on print | — | — |
-| 🧭 | CSV / XLSX exports | — | — |
+| ✅ | Per-venue group filter on print | `src/app/(app)/schedule/print/page.tsx` (`?vg=`) | Phase 13 |
+| ✅ | CSV exports (servers / BEOs / schedule) | `src/app/api/export/route.ts` | Phase 13 |
 
 ## Ops & DX
 
@@ -113,5 +113,5 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | ✅ | Synthetic test-data loader (`npm run db:seed:test`) | `prisma/seed-test-data.ts` | Phase 5.1 |
 | ✅ | Auto-scheduler smoke test script | `prisma/scripts/scheduler-smoke.ts` | Phase 5.1 |
 | ✅ | `FEATURES.md` + `BUGS.md` project-management docs | this file | v0.4 |
-| 🧭 | CI build/test workflow | — | — |
+| ✅ | CI build/test workflow | `.github/workflows/ci.yml` | Phase 13 |
 | 🧭 | E2E tests for board DnD | — | — |

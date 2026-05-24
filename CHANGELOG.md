@@ -13,6 +13,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 13 — Time-off workflow, CSV exports, print filter, CI.**
+  - **Time-off approve / deny workflow.** New `PATCH /api/time-off/[id]`
+    route (ADMIN/MANAGER) stamps `reviewedBy`/`reviewedAt` and writes an
+    `AuditLog` entry (`TIMEOFF_APPROVED|DENIED|CANCELLED|PENDING`). New
+    `TimeOffTable` client component on `/time-off` adds status filter pills
+    (ALL / PENDING / APPROVED / DENIED / CANCELLED with counts), inline
+    Approve / Deny / Reset actions, and `router.refresh()` after each
+    transition. Seed now creates 6 sample requests (3 pending, 2 approved,
+    1 denied) so the page is non-empty on a fresh seed.
+  - **CSV exports.** New `GET /api/export?kind=servers|beos|schedule` route
+    (ADMIN/MANAGER) returns a downloadable, BOM-prefixed, fully-quoted CSV.
+    Export buttons added to `/servers`, `/beos`, and the schedule board's
+    top bar.
+  - **Per-venue-group print filter.** `/schedule/print?vg=<code>` filters
+    the printable grid to shifts whose `locationCode` belongs to the chosen
+    `VenueGroup`. A new venue-group dropdown above the grid drives the
+    filter and remembers the active schedule id.
+  - **GitHub Actions CI.** New `.github/workflows/ci.yml` runs
+    `prisma generate → tsc --noEmit → next build` on every push to `master`
+    and pull request. Build is DB-free thanks to `force-dynamic` on every
+    route; CI uses dummy `AUTH_SECRET` / `DATABASE_URL`.
+  - **MANUAL_SETUP.md.** New gitignored document with step-by-step setup
+    notes (GitHub Actions secrets, Vercel env vars, Neon credential
+    rotation, re-seed flow, `openssl rand -base64 32`, deferred-item list).
+
+### Added
 - **Phase 12 — Drag-and-drop parity & engine fixes.**
   - **Manager DnD parity.** Dragging a manager from the Managers drawer (or
     re-dragging an existing `ManagerChip`) now shows the same `DragOverlay`

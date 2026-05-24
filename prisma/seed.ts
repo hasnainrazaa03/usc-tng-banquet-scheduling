@@ -635,6 +635,38 @@ async function main() {
   console.log("→ Seeding 10 realistic BEOs across operational weeks…");
   await seedExtraBeos(weekStart, adminUser.id);
 
+  // 9) Phase 13: a handful of time-off requests so /time-off has data for the
+  //    approve/deny workflow demo. Idempotent: we no-op if any rows exist.
+  const existingTimeOff = await prisma.timeOffRequest.count();
+  if (existingTimeOff === 0 && createdServers.length >= 6) {
+    console.log("→ Seeding sample time-off requests…");
+    const pickedServers = createdServers.slice(0, 6);
+    const samples = [
+      { server: pickedServers[0], offset: 5, length: 2, reason: "Family wedding", status: "PENDING" as const },
+      { server: pickedServers[1], offset: 9, length: 1, reason: "Medical appointment", status: "PENDING" as const },
+      { server: pickedServers[2], offset: 12, length: 4, reason: "Vacation", status: "PENDING" as const },
+      { server: pickedServers[3], offset: -3, length: 1, reason: "Personal day", status: "APPROVED" as const },
+      { server: pickedServers[4], offset: 16, length: 2, reason: "Funeral", status: "APPROVED" as const },
+      { server: pickedServers[5], offset: 22, length: 3, reason: "Conference", status: "DENIED" as const },
+    ];
+    for (const s of samples) {
+      const start = addDays(weekStart, s.offset);
+      const end = addDays(start, s.length - 1);
+      await prisma.timeOffRequest.create({
+        data: {
+          serverId: s.server.id,
+          startDate: start,
+          endDate: end,
+          reason: s.reason,
+          status: s.status,
+          reviewedBy: s.status === "PENDING" ? null : adminUser.id,
+          reviewedAt: s.status === "PENDING" ? null : new Date(),
+        },
+      });
+    }
+    console.log(`  ✓ ${samples.length} time-off requests (3 pending, 2 approved, 1 denied)`);
+  }
+
   console.log("✓ Seed complete.");
   console.log("  Login: admin@tng.usc.edu / password123     (ADMIN)");
   console.log("  Login: manager@tng.usc.edu / password123   (MANAGER)");
