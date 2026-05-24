@@ -10,29 +10,12 @@ export async function POST(req: NextRequest) {
   const { shiftId, serverId, roleCode } = await req.json();
   if (!shiftId || !serverId) return NextResponse.json({ error: "Missing shiftId/serverId" }, { status: 400 });
 
-  // Conflict detection: same server, overlapping shift
+  // Phase 14: cross-venue duplicates are explicitly allowed. The same
+  // server may be assigned to overlapping shifts at different venues on the
+  // same day. The composite `@@unique([shiftId, serverId])` constraint still
+  // prevents exact-slot duplicates (caught below as P2002 → 409).
   const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
   if (!shift) return NextResponse.json({ error: "Shift not found" }, { status: 404 });
-
-  const conflict = await prisma.shiftAssignment.findFirst({
-    where: {
-      serverId,
-      shift: {
-        scheduleId: shift.scheduleId,
-        id: { not: shiftId },
-        AND: [
-          { startsAt: { lt: shift.endsAt } },
-          { endsAt: { gt: shift.startsAt } },
-        ],
-      },
-    },
-    include: { shift: true },
-  });
-  if (conflict) {
-    return NextResponse.json({
-      error: `Conflict: server already on shift "${conflict.shift.label ?? conflict.shiftId}".`,
-    }, { status: 409 });
-  }
 
   try {
     const a = await prisma.shiftAssignment.create({

@@ -2,22 +2,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
-} from "@dnd-kit/core";
-import {
   Printer,
   Wand2,
   LayoutGrid,
   Rows3,
   AlertTriangle,
-  Users,
-  PanelRightOpen,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import Link from "next/link";
 import { ShiftCard } from "./components/ShiftCard";
@@ -27,19 +18,21 @@ import { ManagersDrawer } from "./components/ManagersDrawer";
 import { WeekNavigator } from "./components/WeekNavigator";
 import { ScheduleOpsPanel } from "./components/ScheduleOpsPanel";
 import { CalloutModal } from "./components/CalloutModal";
-import { DOW, dayKey, type BoardData, type DragKind, type Shift, type Assignment } from "./types";
+import {
+  DOW,
+  dayKey,
+  type BoardData,
+  type Shift,
+  type Assignment,
+} from "./types";
 
 type View = "day" | "roster";
 type Density = "comfortable" | "compact";
 
 const PREFS_KEY = "usc-pec-board-prefs";
 
-type Prefs = { view: View; density: Density; drawerOpen: boolean };
-const DEFAULT_PREFS: Prefs = {
-  view: "day",
-  density: "comfortable",
-  drawerOpen: false,
-};
+type Prefs = { view: View; density: Density };
+const DEFAULT_PREFS: Prefs = { view: "day", density: "comfortable" };
 
 function loadPrefs(): Prefs {
   if (typeof window === "undefined") return DEFAULT_PREFS;
@@ -50,7 +43,6 @@ function loadPrefs(): Prefs {
     return {
       view: parsed.view === "roster" ? "roster" : "day",
       density: parsed.density === "compact" ? "compact" : "comfortable",
-      drawerOpen: Boolean(parsed.drawerOpen),
     };
   } catch {
     return DEFAULT_PREFS;
@@ -60,46 +52,42 @@ function loadPrefs(): Prefs {
 export default function ScheduleBoard({ data }: { data: BoardData }) {
   const router = useRouter();
   const [shifts, setShifts] = useState<Shift[]>(data.shifts);
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // Toast for AI / Fill Unassigned outcome (auto-clears).
   const [runToast, setRunToast] = useState<
     | { kind: "ok" | "err"; message: string }
     | null
   >(null);
-  // Call-out + replacement modal target. `null` means the modal is closed.
   const [calloutTarget, setCalloutTarget] = useState<{ a: Assignment; shift: Shift } | null>(null);
 
-  // Persisted view preferences (hydrated client-side to avoid SSR mismatch).
+  // Picker state — Phase 14 replaces the always-open drag drawers with
+  // on-demand pickers that open from a "+" button on a role/manager slot.
+  const [serverPicker, setServerPicker] = useState<
+    { shiftId: string; roleCode: string } | null
+  >(null);
+  const [managerPicker, setManagerPicker] = useState<{ beoId: string } | null>(null);
+
+  // BEO-level collapsible roster state. By default ALL shifts start collapsed
+  // (server names hidden); clicking the header chevron expands a card.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [view, setView] = useState<View>("day");
   const [density, setDensity] = useState<Density>("comfortable");
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [managersDrawerOpen, setManagersDrawerOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const p = loadPrefs();
     setView(p.view);
     setDensity(p.density);
-    setDrawerOpen(p.drawerOpen);
     setHydrated(true);
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(
-        PREFS_KEY,
-        JSON.stringify({ view, density, drawerOpen }),
-      );
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ view, density }));
     } catch {
       /* ignore quota errors */
     }
-  }, [view, density, drawerOpen, hydrated]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-  );
+  }, [view, density, hydrated]);
 
   const allRoles = useMemo(() => {
     const set = new Set<string>();
@@ -115,21 +103,21 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
 
   const byDay = useMemo(() => {
     const m: Record<string, Shift[]> = {
-      SUN: [],
-      MON: [],
-      TUE: [],
-      WED: [],
-      THU: [],
-      FRI: [],
-      SAT: [],
+      SUN: [], MON: [], TUE: [], WED: [], THU: [], FRI: [], SAT: [],
     };
     for (const s of shifts) m[dayKey(s.date)]?.push(s);
     return m;
   }, [shifts]);
 
-  // Detect overlap conflicts: same server, overlapping time windows.
-  // Called-out assignments are excluded so they no longer count as conflicts
-  // for the replacement we just dragged in.
+  /**
+   * Phase 14: overlap conflicts are now INFORMATIONAL only.
+   *
+   * The same server may be assigned across different venues during
+   * overlapping windows (e.g. a manager intentionally pulling someone for
+   * a quick BAR shift at the next building over). We still flag the chips
+   * with an amber ring + tooltip so the user can see what's happening, but
+   * the API no longer 409s and the UI no longer treats it as a hard error.
+   */
   const conflictIds = useMemo(() => {
     const map = new Map<string, { start: number; end: number; id: string }[]>();
     const set = new Set<string>();
@@ -187,10 +175,6 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
     });
   }
 
-  function onDragStart(e: DragStartEvent) {
-    setActiveId(String(e.active.id));
-  }
-
   async function persistSetBeoManager(beoId: string, managerId: string | null) {
     const res = await fetch(`/api/beos/${beoId}/manager`, {
       method: "PUT",
@@ -206,12 +190,10 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
     return res.json();
   }
 
-  /**
-   * Optimistically update every shift whose event references the given BEO
-   * so the new (or cleared) manager shows immediately on each card without
-   * waiting on a full router refresh.
-   */
-  function applyManagerLocal(beoId: string, manager: { id: string; name: string } | null) {
+  function applyManagerLocal(
+    beoId: string,
+    manager: { id: string; name: string } | null,
+  ) {
     setShifts((prev) =>
       prev.map((sh) => {
         if (!sh.event?.beo || sh.event.beo.id !== beoId) return sh;
@@ -223,71 +205,56 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
     );
   }
 
-  async function onDragEnd(e: DragEndEvent) {
-    setActiveId(null);
-    const { active, over } = e;
-    if (!over) return;
-    const dragId = String(active.id);
-    const overId = String(over.id);
+  function toggleExpand(shiftId: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(shiftId)) next.delete(shiftId);
+      else next.add(shiftId);
+      return next;
+    });
+  }
 
-    // BEO manager drop zone — accepts both `manager:{id}` (from drawer) and
-    // `manager:{id}` re-emitted by a chip on another shift card.
-    if (overId.startsWith("beo-mgr:")) {
-      const beoId = overId.slice("beo-mgr:".length);
-      let managerId: string | null = null;
-      if (dragId.startsWith("manager:")) {
-        managerId = dragId.slice("manager:".length);
-      } else {
-        return;
-      }
-      const candidate = data.managers.find((m) => m.id === managerId);
-      if (!candidate) return;
-      applyManagerLocal(beoId, { id: candidate.id, name: candidate.name });
-      const res = await persistSetBeoManager(beoId, managerId);
-      if (!res) return;
-      return;
-    }
+  function expandAll() {
+    setExpanded(new Set(shifts.map((s) => s.id)));
+  }
 
-    if (!overId.startsWith("shift:")) return;
-    const [, shiftId, roleCode] = overId.split(":");
+  function collapseAll() {
+    setExpanded(new Set());
+  }
 
-    if (dragId.startsWith("server:")) {
-      const serverId = dragId.replace("server:", "");
-      const result = await persistAssign(shiftId, serverId, roleCode);
-      if (result) {
-        setShifts((prev) =>
-          prev.map((s) =>
-            s.id === shiftId
-              ? { ...s, assignments: [...s.assignments, result] }
-              : s,
-          ),
-        );
-      }
-    } else if (dragId.startsWith("assignment:")) {
-      const assignmentId = dragId.replace("assignment:", "");
-      const fromShift = shifts.find((s) =>
-        s.assignments.some((a) => a.id === assignmentId),
+  function openServerPicker(shiftId: string, roleCode: string) {
+    setServerPicker({ shiftId, roleCode });
+  }
+
+  function openManagerPicker(beoId: string) {
+    setManagerPicker({ beoId });
+  }
+
+  async function handleServerPick(serverId: string) {
+    if (!serverPicker) return;
+    const { shiftId, roleCode } = serverPicker;
+    const result = await persistAssign(shiftId, serverId, roleCode);
+    if (result) {
+      setShifts((prev) =>
+        prev.map((s) =>
+          s.id === shiftId
+            ? { ...s, assignments: [...s.assignments, result] }
+            : s,
+        ),
       );
-      const a = fromShift?.assignments.find((x) => x.id === assignmentId);
-      if (!a || !fromShift) return;
-      if (fromShift.id === shiftId) return;
-      await persistRemove(assignmentId);
-      const result = await persistAssign(shiftId, a.serverId, roleCode);
-      if (result) {
-        setShifts((prev) =>
-          prev.map((s) => {
-            if (s.id === fromShift.id)
-              return {
-                ...s,
-                assignments: s.assignments.filter((x) => x.id !== assignmentId),
-              };
-            if (s.id === shiftId)
-              return { ...s, assignments: [...s.assignments, result] };
-            return s;
-          }),
-        );
-      }
     }
+    setServerPicker(null);
+  }
+
+  async function handleManagerPick(managerId: string) {
+    if (!managerPicker) return;
+    const { beoId } = managerPicker;
+    const candidate = data.managers.find((m) => m.id === managerId);
+    if (candidate) {
+      applyManagerLocal(beoId, { id: candidate.id, name: candidate.name });
+    }
+    await persistSetBeoManager(beoId, managerId);
+    setManagerPicker(null);
   }
 
   async function rerunUnlocked() {
@@ -300,9 +267,7 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
         body: JSON.stringify({ scheduleId: data.schedule.id, clearFirst: false }),
       });
       const raw = await res.text();
-      let parsed:
-        | { filled?: number; unfilled?: number; error?: string }
-        | null = null;
+      let parsed: { filled?: number; unfilled?: number; error?: string } | null = null;
       if (raw) {
         try {
           parsed = JSON.parse(raw);
@@ -318,9 +283,7 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
       } else {
         setRunToast({
           kind: "ok",
-          message: `Fill Unassigned: ${parsed?.filled ?? 0} filled, ${
-            parsed?.unfilled ?? 0
-          } still unfilled.`,
+          message: `Fill Unassigned: ${parsed?.filled ?? 0} filled, ${parsed?.unfilled ?? 0} still unfilled.`,
         });
         router.refresh();
       }
@@ -331,7 +294,6 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
       });
     } finally {
       setBusy(false);
-      // Auto-dismiss after 6 s
       setTimeout(() => setRunToast(null), 6000);
     }
   }
@@ -362,38 +324,10 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
     );
   };
 
-  const activeServer = activeId?.startsWith("server:")
-    ? data.servers.find((s) => s.id === activeId.replace("server:", ""))
-    : null;
-  const activeManager = activeId?.startsWith("manager:")
-    ? data.managers.find((m) => m.id === activeId.replace("manager:", ""))
-    : null;
-  // When moving an existing assignment, show the assignee's name in the drag
-  // overlay so the user always sees what's flying under the cursor.
-  const activeAssignment = activeId?.startsWith("assignment:")
-    ? shifts
-        .flatMap((sh) => sh.assignments)
-        .find((a) => a.id === activeId.replace("assignment:", ""))
-    : null;
-
-  // Kind of drag in flight — plumbed into ShiftCard so drop targets can
-  // render valid/invalid feedback (red ring for cross-type drops).
-  const activeKind: DragKind = activeId
-    ? activeId.startsWith("server:")
-      ? "server"
-      : activeId.startsWith("manager:")
-        ? "manager"
-        : activeId.startsWith("assignment:")
-          ? "assignment"
-          : null
-    : null;
-
   const totalReq = shifts.reduce(
     (s, sh) => s + sh.requirements.reduce((x, r) => x + r.count, 0),
     0,
   );
-  // Called-out assignments don't count as "assigned" anymore — they free the
-  // slot for a replacement.
   const totalAssigned = shifts.reduce(
     (s, sh) => s + sh.assignments.filter((a) => !a.calledOut).length,
     0,
@@ -404,16 +338,13 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
     0,
   );
 
-  // Open the call-out modal for a given assignment, looking up its parent
-  // shift in the local state so the modal has full context.
   function openCallout(a: Assignment) {
     const parent = shifts.find((sh) => sh.assignments.some((x) => x.id === a.id));
     if (parent) setCalloutTarget({ a, shift: parent });
   }
 
-  // Density-aware sizing for the Day grid. Compact mode shrinks the card
-  // header, internal padding, and minimum column height so the user can
-  // see more shifts at once without scrolling.
+  const drawerOpen = serverPicker !== null || managerPicker !== null;
+
   const dayCardCls =
     density === "compact"
       ? "card !p-2 min-h-[160px] flex flex-col text-[11px]"
@@ -424,7 +355,7 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
   return (
     <div
       className="space-y-4 transition-[padding] duration-200"
-      style={{ paddingRight: drawerOpen || managersDrawerOpen ? 348 : 0 }}
+      style={{ paddingRight: drawerOpen ? 348 : 0 }}
     >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
@@ -432,8 +363,9 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
             {data.schedule.name}
           </h1>
           <p className="text-ink-muted text-sm mt-1">
-            Operational week runs Thursday → Wednesday. Drag servers onto
-            unfilled role slots; lock to protect from auto-fill.
+            Operational week runs Thursday → Wednesday. Click the “+” on a
+            role slot to add a server; click the manager slot to assign a
+            manager. The same person can be used across multiple venues.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -454,9 +386,9 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
           )}
           {conflictIds.size > 0 && (
             <StatBadge
-              label="Conflicts"
+              label="Stacked"
               value={conflictIds.size}
-              tone="danger"
+              tone="warn"
               icon={<AlertTriangle className="h-3.5 w-3.5" />}
             />
           )}
@@ -531,6 +463,28 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
         </div>
 
         <div className="flex items-center gap-2">
+          {view === "day" && (
+            <div className="inline-flex rounded-lg border border-ink/10 overflow-hidden">
+              <button
+                type="button"
+                onClick={expandAll}
+                className="px-2.5 py-1 text-xs bg-white hover:bg-canvas-soft inline-flex items-center gap-1"
+                title="Expand all BEO cards"
+              >
+                <ChevronDown className="h-3 w-3" />
+                Expand all
+              </button>
+              <button
+                type="button"
+                onClick={collapseAll}
+                className="px-2.5 py-1 text-xs bg-white hover:bg-canvas-soft border-l border-ink/10 inline-flex items-center gap-1"
+                title="Collapse all BEO cards"
+              >
+                <ChevronUp className="h-3 w-3" />
+                Collapse all
+              </button>
+            </div>
+          )}
           <label className="text-xs text-ink-muted">Density</label>
           <div className="inline-flex rounded-lg border border-ink/10 overflow-hidden">
             <button
@@ -554,150 +508,100 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
               Compact
             </button>
           </div>
-          <button
-            onClick={() => setDrawerOpen(true)}
-            className="btn-primary !px-3 !py-1.5 text-xs"
-            title="Open available servers panel"
-          >
-            <Users className="h-3.5 w-3.5" />
-            Servers
-          </button>
-          <button
-            onClick={() => setManagersDrawerOpen(true)}
-            className="btn-outline !px-3 !py-1.5 text-xs"
-            title="Open available managers panel"
-          >
-            <Users className="h-3.5 w-3.5" />
-            Managers
-          </button>
         </div>
       </div>
 
-      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-        {/* Floating button to reopen drawer on mid-drag */}
-        {!drawerOpen && (
-          <button
-            onClick={() => setDrawerOpen(true)}
-            className="fixed bottom-6 right-6 z-20 btn-primary !rounded-full !px-4 !py-3 shadow-lg"
-            title="Available servers"
-            aria-label="Open available servers"
-          >
-            <PanelRightOpen className="h-4 w-4" />
-            <span className="hidden sm:inline">Servers</span>
-          </button>
-        )}
-
-        <div className="min-w-0">
-          {view === "day" ? (
-            <div className="overflow-x-auto pb-2">
-              <div className={`grid grid-cols-7 gap-3 ${dayMinWidth}`}>
-                {DOW.map((d, i) => {
-                  const date = new Date(data.schedule.weekStart);
-                  date.setDate(date.getDate() + i);
-                  const isWeekend = d === "SAT" || d === "SUN";
-                  return (
-                    <div
-                      key={d}
-                      className={`${dayCardCls} ${
-                        isWeekend ? "bg-gold-50/40" : ""
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-ink/10">
-                        <div>
-                          <div className="font-display text-xs uppercase tracking-wider">
-                            {d}
-                          </div>
-                          <div className="text-[10px] text-ink-muted font-mono">
-                            {date.toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                            })}
-                          </div>
+      <div className="min-w-0">
+        {view === "day" ? (
+          <div className="overflow-x-auto pb-2">
+            <div className={`grid grid-cols-7 gap-3 ${dayMinWidth}`}>
+              {DOW.map((d, i) => {
+                const date = new Date(data.schedule.weekStart);
+                date.setDate(date.getDate() + i);
+                const isWeekend = d === "SAT" || d === "SUN";
+                return (
+                  <div
+                    key={d}
+                    className={`${dayCardCls} ${isWeekend ? "bg-gold-50/40" : ""}`}
+                  >
+                    <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-ink/10">
+                      <div>
+                        <div className="font-display text-xs uppercase tracking-wider">
+                          {d}
                         </div>
-                        <div className="text-[10px] text-ink-muted">
-                          {byDay[d]?.length ?? 0} shift
-                          {(byDay[d]?.length ?? 0) === 1 ? "" : "s"}
+                        <div className="text-[10px] text-ink-muted font-mono">
+                          {date.toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
                         </div>
                       </div>
-                      <div className="space-y-2 flex-1">
-                        {(byDay[d] ?? []).length === 0 ? (
-                          <div className="text-[11px] text-ink-muted text-center py-6 italic">
-                            No shifts
-                          </div>
-                        ) : (
-                          (byDay[d] ?? []).map((sh) => (
-                            <ShiftCard
-                              key={sh.id}
-                              shift={sh}
-                              onRemove={onRemove}
-                              onToggleLock={onToggleLock}
-                              onCallout={openCallout}
-                              onClearManager={onClearManager}
-                              conflictIds={conflictIds}
-                              activeKind={activeKind}
-                            />
-                          ))
-                        )}
+                      <div className="text-[10px] text-ink-muted">
+                        {byDay[d]?.length ?? 0} shift
+                        {(byDay[d]?.length ?? 0) === 1 ? "" : "s"}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="space-y-2 flex-1">
+                      {(byDay[d] ?? []).length === 0 ? (
+                        <div className="text-[11px] text-ink-muted text-center py-6 italic">
+                          No shifts
+                        </div>
+                      ) : (
+                        (byDay[d] ?? []).map((sh) => (
+                          <ShiftCard
+                            key={sh.id}
+                            shift={sh}
+                            expanded={expanded.has(sh.id)}
+                            onToggleExpand={toggleExpand}
+                            onRemove={onRemove}
+                            onToggleLock={onToggleLock}
+                            onCallout={openCallout}
+                            onClearManager={onClearManager}
+                            onOpenServerPicker={openServerPicker}
+                            onOpenManagerPicker={openManagerPicker}
+                            conflictIds={conflictIds}
+                          />
+                        ))
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ) : (
-            <RosterGrid
-              schedule={data.schedule}
-              shifts={shifts}
-              servers={data.servers}
-              onRemove={onRemove}
-              onToggleLock={onToggleLock}
-              conflictIds={conflictIds}
-              density={density}
-            />
-          )}
-        </div>
+          </div>
+        ) : (
+          <RosterGrid
+            schedule={data.schedule}
+            shifts={shifts}
+            servers={data.servers}
+            onRemove={onRemove}
+            onToggleLock={onToggleLock}
+            conflictIds={conflictIds}
+            density={density}
+          />
+        )}
+      </div>
 
-        <ServersDrawer
-          servers={data.servers}
-          open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          filterRoles={allRoles}
-          filterLocations={allLocations}
-          density={density}
-        />
+      <ServersDrawer
+        servers={data.servers}
+        open={serverPicker !== null}
+        context={serverPicker}
+        shifts={shifts}
+        onClose={() => setServerPicker(null)}
+        onPick={handleServerPick}
+        filterRoles={allRoles}
+        filterLocations={allLocations}
+        density={density}
+      />
 
-        <ManagersDrawer
-          managers={data.managers}
-          open={managersDrawerOpen}
-          onClose={() => setManagersDrawerOpen(false)}
-        />
-
-        <DragOverlay>
-          {activeServer && (
-            <div className="bg-cardinal text-white rounded-lg px-3 py-2 text-sm shadow-lg ring-2 ring-cardinal/30">
-              <div className="font-medium leading-tight">
-                {activeServer.lastName}, {activeServer.firstName}
-              </div>
-              <div className="text-[10px] opacity-80">
-                #{activeServer.seniority?.seniorityRank ?? "—"}
-              </div>
-            </div>
-          )}
-          {activeAssignment && (
-            <div className="bg-cardinal text-white rounded-md px-2 py-1 text-[11px] shadow-lg ring-2 ring-cardinal/30">
-              <span className="font-medium">
-                {activeAssignment.server.lastName}, {activeAssignment.server.firstName[0]}.
-              </span>
-            </div>
-          )}
-          {activeManager && (
-            <div className="bg-cardinal text-white rounded-lg px-3 py-2 text-sm shadow-lg ring-2 ring-cardinal/30">
-              <div className="font-medium leading-tight">{activeManager.name}</div>
-              <div className="text-[10px] opacity-80 uppercase">{activeManager.role}</div>
-            </div>
-          )}
-        </DragOverlay>
-      </DndContext>
+      <ManagersDrawer
+        managers={data.managers}
+        open={managerPicker !== null}
+        context={managerPicker}
+        shifts={shifts}
+        onClose={() => setManagerPicker(null)}
+        onPick={handleManagerPick}
+      />
 
       <CalloutModal
         assignment={calloutTarget?.a ?? null}
@@ -717,19 +621,21 @@ function StatBadge({
 }: {
   label: string;
   value: number;
-  tone?: "ok" | "danger";
+  tone?: "ok" | "danger" | "warn";
   icon?: React.ReactNode;
 }) {
   const cls =
     tone === "danger"
       ? "bg-red-50 text-red-800 border-red-200"
-      : "bg-canvas-soft text-ink border-ink/10";
+      : tone === "warn"
+        ? "bg-amber-50 text-amber-800 border-amber-200"
+        : "bg-canvas-soft text-ink border-ink/10";
   return (
     <div
       className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium ${cls}`}
     >
       {icon}
-      <span className="text-ink-muted">{label}</span>
+      <span className="opacity-70">{label}</span>
       <span className="font-mono font-semibold">{value}</span>
     </div>
   );

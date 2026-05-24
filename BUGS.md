@@ -18,10 +18,14 @@ risks regressions; deferred to a dedicated PR.
 **Fix:** rename `Room → Venue` (Prisma `@@map("Room")`), then progressively
 migrate all `prisma.room.*` callers. See `docs/architecture/venue-hierarchy.md`.
 
-### TD — No tests for DnD board
-The Phase 4.1 fix for the scrim-eating-drops bug is currently validated only
-manually. We need a Playwright / Vitest+jsdom test that simulates a drop and
-confirms the assignment lands on the right shift.
+### TD — No tests for click-to-add board (DnD removed in v0.5)
+The Phase 14 refactor swapped drag-and-drop for click-to-add picker drawers
+(`board.tsx`, `ShiftCard.tsx`, `ServersDrawer.tsx`, `ManagersDrawer.tsx`). The
+new interaction is validated only manually; we need a Playwright / Vitest
+test that clicks a `+` button, picks a server from the drawer, and confirms
+the assignment lands on the right shift + role.
+**Note:** the pre-v0.5 DnD test debt was obsoleted by the refactor — drag
+code paths and `@dnd-kit/*` dependencies are gone.
 
 ---
 

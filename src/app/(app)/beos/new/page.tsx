@@ -335,7 +335,10 @@ function FormTab({
               className="input"
               value={form.beoNumber}
               onChange={(e) => up("beoNumber", e.target.value)}
-              placeholder="BEO-2026-1234"
+              placeholder="e.g. 24831"
+              inputMode="numeric"
+              pattern="\d{3,6}"
+              title="Typically a 5-digit number. Not globally unique, but should be unique per event date."
               required
             />
           </div>

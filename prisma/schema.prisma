@@ -334,6 +334,11 @@ model BEO {
   id              String       @id @default(cuid())
   bookingId       String?      @unique
   uepaNumber      String?
+  // Phase 14: 5-digit BEO number used by USC PEC. Not globally unique, but
+  // expected to be unique within a single eventDate. Indexed on
+  // (eventDate, beoNumber) so the create/edit forms can do a quick
+  // duplicate-of-the-day lookup.
+  beoNumber       String?
   postAs          String       // event name / post as
   account         String?
   billingMethod   String?
@@ -379,6 +384,7 @@ model BEO {
   updatedAt       DateTime     @updatedAt
 
   @@index([eventDate])
+  @@index([eventDate, beoNumber])
 }
 
 // A section/function within a BEO (e.g., Reception, Dinner, Breakdown)

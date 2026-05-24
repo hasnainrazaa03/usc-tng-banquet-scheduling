@@ -10,6 +10,7 @@ type BEOInput = {
   postAs: string;
   bookingId: string;
   uepaNumber: string;
+  beoNumber: string;
   account: string;
   contactName: string;
   contactPhone: string;
@@ -80,6 +81,7 @@ export default function BEOEditForm({
         postAs: form.postAs,
         bookingId: form.bookingId,
         uepaNumber: form.uepaNumber,
+        beoNumber: form.beoNumber,
         account: form.account,
         contactName: form.contactName,
         contactPhone: form.contactPhone,
@@ -150,7 +152,15 @@ export default function BEOEditForm({
               <input className="input w-full" value={form.bookingId} required
                 onChange={(e) => set("bookingId", e.target.value)} />
             </Field>
-            <Field label="BEO / UEPA #">
+            <Field label="BEO # (5-digit)">
+              <input className="input w-full" value={form.beoNumber}
+                inputMode="numeric"
+                pattern="\d{3,6}"
+                placeholder="e.g. 24831"
+                title="Typically 5 digits. Not globally unique, but should be unique per event date."
+                onChange={(e) => set("beoNumber", e.target.value)} />
+            </Field>
+            <Field label="UEPA #">
               <input className="input w-full" value={form.uepaNumber}
                 onChange={(e) => set("uepaNumber", e.target.value)} />
             </Field>

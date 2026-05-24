@@ -63,6 +63,7 @@ export async function GET(req: NextRequest) {
       include: { location: true, room: true, manager: true },
     });
     const header = [
+      "beoNumber",
       "bookingId",
       "postAs",
       "account",
@@ -81,6 +82,7 @@ export async function GET(req: NextRequest) {
     const rows: CsvValue[][] = [header];
     for (const b of beos) {
       rows.push([
+        b.beoNumber ?? null,
         b.bookingId ?? null,
         b.postAs ?? null,
         b.account ?? null,

@@ -1,7 +1,5 @@
 "use client";
-import { useDroppable } from "@dnd-kit/core";
 import { useMemo } from "react";
-import { AssignmentChip } from "./Draggables";
 import {
   DOW,
   ROLE_COLORS,

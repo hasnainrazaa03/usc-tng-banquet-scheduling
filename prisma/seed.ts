@@ -488,6 +488,7 @@ async function main() {
       (await prisma.bEO.create({
         data: {
           bookingId,
+          beoNumber: "10042",
           postAs: "Trustees Donor Reception & Dinner",
           account: "USC Office of the President",
           billingMethod: "Internal Transfer",
@@ -1010,7 +1011,7 @@ async function seedExtraBeos(weekStart: Date, adminUserId: string) {
   const barRole = await prisma.role.findUnique({ where: { code: "BAR" } });
 
   let created = 0;
-  for (const b of EXTRA_BEOS) {
+  for (const [i, b] of EXTRA_BEOS.entries()) {
     const bookingId = `BK-${today.getFullYear()}-${b.bookingSuffix}`;
     if (await prisma.bEO.findUnique({ where: { bookingId } })) continue;
 
@@ -1021,10 +1022,13 @@ async function seedExtraBeos(weekStart: Date, adminUserId: string) {
     }
     const manager = b.cateringManagerEmail ? await pickManagerByEmail(b.cateringManagerEmail) : null;
     const eventDate = addDays(weekStart, b.daysFromWeekStart);
+    // Deterministic 5-digit BEO # (10100..10999 range) so re-seed is stable.
+    const beoNumber = String(10100 + i);
 
     const beo = await prisma.bEO.create({
       data: {
         bookingId,
+        beoNumber,
         postAs: b.postAs,
         account: b.account,
         contactName: b.contactName,

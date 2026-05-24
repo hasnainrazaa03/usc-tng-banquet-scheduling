@@ -62,7 +62,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const data: Record<string, unknown> = {};
 
   const stringFields = [
-    "postAs", "account", "bookingId", "uepaNumber",
+    "postAs", "account", "bookingId", "uepaNumber", "beoNumber",
     "contactName", "contactEmail", "contactPhone",
     "onsiteContact", "cateringManager",
     "setupNotes", "specialInstructions", "miscNotes", "handwrittenChanges",

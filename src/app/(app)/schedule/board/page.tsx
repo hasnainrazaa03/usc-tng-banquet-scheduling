@@ -87,6 +87,7 @@ export default async function ScheduleBoardPage({
               select: {
                 id: true,
                 postAs: true,
+                beoNumber: true,
                 expectedGuests: true,
                 manager: { select: { id: true, name: true } },
                 location: { select: { code: true, name: true } },

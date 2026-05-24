@@ -1,29 +1,41 @@
 "use client";
-import { useDraggable } from "@dnd-kit/core";
-import { Lock, Unlock, X, UserMinus, UserCircle2 } from "lucide-react";
+import { Lock, Unlock, X, UserMinus, UserCircle2, Plus } from "lucide-react";
 import type { Assignment, Manager, Server } from "../types";
 
-/** Server pill draggable from the sidebar / roster. */
-export function DraggableServer({
+/**
+ * Phase 14: static chips/pills. The previous `Draggables.tsx` exposed
+ * `useDraggable`-backed pills; assignment now happens via click-to-add
+ * (a `+` button on each role/manager slot opens the picker drawer). These
+ * components stayed in the same file so the rest of the board UI didn't
+ * need import-path churn.
+ */
+
+/** Server pill rendered inside the picker drawer. Click to assign. */
+export function ServerPickerPill({
   server,
+  onPick,
+  alreadyOn,
   compact = false,
 }: {
   server: Server;
+  onPick: () => void;
+  /**
+   * Optional summary of where this server is already scheduled today /
+   * during the week. Cross-venue assignments are NOT blocked — this is
+   * informational only.
+   */
+  alreadyOn?: string;
   compact?: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `server:${server.id}`,
-  });
   return (
-    <div
-      ref={setNodeRef}
-      {...attributes}
-      {...listeners}
+    <button
+      type="button"
+      onClick={onPick}
       className={`
-        group rounded-lg border bg-white px-3 py-2 cursor-grab active:cursor-grabbing
+        group w-full text-left rounded-lg border bg-white px-3 py-2
         hover:border-cardinal hover:bg-cardinal/[0.03] hover:shadow-sm
-        transition-all
-        ${isDragging ? "opacity-40 ring-2 ring-cardinal" : "border-ink/10"}
+        focus:outline-none focus:ring-2 focus:ring-cardinal/40
+        transition-all border-ink/10
         ${compact ? "py-1.5 px-2.5" : ""}
       `}
     >
@@ -37,21 +49,35 @@ export function DraggableServer({
       </div>
       {!compact && (
         <div className="flex items-center justify-between text-[10px] text-ink-muted mt-0.5">
-          <span>{server.seniority?.yearsOfService.toFixed(1) ?? "0"}y · {server.classification.split("_")[0].toLowerCase()}</span>
+          <span>
+            {server.seniority?.yearsOfService.toFixed(1) ?? "0"}y ·{" "}
+            {server.classification.split("_")[0].toLowerCase()}
+          </span>
           <span className="flex gap-0.5">
             {server.qualifications.slice(0, 3).map((q) => (
-              <span key={q.qualification.code} className="rounded bg-canvas-soft px-1 text-[9px]">
+              <span
+                key={q.qualification.code}
+                className="rounded bg-canvas-soft px-1 text-[9px]"
+              >
                 {q.qualification.code}
               </span>
             ))}
           </span>
         </div>
       )}
-    </div>
+      {alreadyOn && (
+        <div className="mt-1 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+          Also scheduled: {alreadyOn}
+        </div>
+      )}
+    </button>
   );
 }
 
-/** Already-assigned chip — draggable to a different slot, lockable, removable. */
+/**
+ * Chip rendered inside a role slot for an existing assignment. No longer
+ * draggable. Hover reveals lock / call-out / remove actions.
+ */
 export function AssignmentChip({
   a,
   onRemove,
@@ -65,13 +91,7 @@ export function AssignmentChip({
   onCallout?: (a: Assignment) => void;
   conflict?: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `assignment:${a.id}`,
-    disabled: a.calledOut,
-  });
   if (a.calledOut) {
-    // Render a non-draggable, visibly struck-through chip so the manager can
-    // still see who originally had the shift. Restore button lets them undo.
     return (
       <div
         className="group flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] bg-red-50 border border-red-200 text-red-900"
@@ -96,24 +116,20 @@ export function AssignmentChip({
   }
   return (
     <div
-      ref={setNodeRef}
       className={`
         group flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px]
         transition-colors
         ${a.locked ? "bg-cardinal text-white" : "bg-white border"}
-        ${conflict ? "ring-2 ring-red-500 border-red-300" : a.locked ? "" : "border-ink/15"}
-        ${isDragging ? "opacity-40" : ""}
+        ${conflict ? "ring-2 ring-amber-400 border-amber-300" : a.locked ? "" : "border-ink/15"}
       `}
-      title={a.reason ?? ""}
+      title={
+        conflict
+          ? "Heads-up: this person is also booked on another overlapping shift (cross-venue is allowed)."
+          : (a.reason ?? "")
+      }
     >
-      {a.locked ? (
-        <Lock className="h-2.5 w-2.5 shrink-0 opacity-80" />
-      ) : null}
-      <span
-        {...attributes}
-        {...listeners}
-        className="truncate font-medium flex-1 cursor-grab active:cursor-grabbing select-none"
-      >
+      {a.locked ? <Lock className="h-2.5 w-2.5 shrink-0 opacity-80" /> : null}
+      <span className="truncate font-medium flex-1 select-none">
         {a.server.lastName}, {a.server.firstName[0]}.
       </span>
       <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
@@ -141,97 +157,84 @@ export function AssignmentChip({
   );
 }
 
-/**
- * Manager pill draggable from the managers drawer.
- *
- * Drag id: `manager:{userId}`. Drop target is a `beo-mgr:{beoId}` zone on
- * any shift card. The drop handler in `board.tsx` resolves the target BEO
- * and PUTs to `/api/beos/{beoId}/manager`.
- */
-export function DraggableManager({
+/** Manager pill rendered inside the manager picker. Click to assign. */
+export function ManagerPickerPill({
   manager,
+  onPick,
+  alreadyOn,
   compact = false,
 }: {
   manager: Manager;
+  onPick: () => void;
+  alreadyOn?: string;
   compact?: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `manager:${manager.id}`,
-  });
   return (
-    <div
-      ref={setNodeRef}
-      {...attributes}
-      {...listeners}
+    <button
+      type="button"
+      onClick={onPick}
       className={`
-        group rounded-lg border bg-white px-3 py-2 cursor-grab active:cursor-grabbing
+        group w-full text-left rounded-lg border bg-white px-3 py-2
         hover:border-cardinal hover:bg-cardinal/[0.03] hover:shadow-sm
-        transition-all
-        ${isDragging ? "opacity-40 ring-2 ring-cardinal" : "border-ink/10"}
+        focus:outline-none focus:ring-2 focus:ring-cardinal/40
+        transition-all border-ink/10
         ${compact ? "py-1.5 px-2.5" : ""}
       `}
     >
       <div className="flex items-center gap-2 min-w-0">
         <UserCircle2 className="h-4 w-4 text-cardinal shrink-0" />
         <div className="min-w-0 flex-1">
-          <div className="font-medium text-sm leading-tight truncate">
-            {manager.name}
-          </div>
+          <div className="font-medium text-sm leading-tight truncate">{manager.name}</div>
           {!compact && (
-            <div className="text-[10px] text-ink-muted truncate">
-              {manager.email}
-            </div>
+            <div className="text-[10px] text-ink-muted truncate">{manager.email}</div>
           )}
         </div>
         <span className="font-mono text-[9px] text-ink-muted uppercase shrink-0">
           {manager.role}
         </span>
       </div>
-    </div>
+      {alreadyOn && (
+        <div className="mt-1 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+          Also assigned: {alreadyOn}
+        </div>
+      )}
+    </button>
   );
 }
 
 /**
- * Chip rendered inside a shift card showing the currently-assigned manager
- * for the underlying BEO. Draggable to another BEO's manager slot (drag id
- * `manager:{userId}`, exactly the same as the drawer chip so re-assignment
- * goes through the same code path). Clicking the X clears the manager.
+ * Manager chip rendered inside a BEO's manager slot. Hover reveals "swap"
+ * and "clear" actions; swap re-opens the picker for that BEO.
  */
 export function ManagerChip({
   beoId,
   manager,
+  onSwap,
   onClear,
 }: {
   beoId: string;
   manager: { id: string; name: string };
+  onSwap: (beoId: string) => void;
   onClear: (beoId: string) => void;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `manager:${manager.id}`,
-  });
   return (
     <div
-      className={`
-        group flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px]
-        bg-cardinal-50 border border-cardinal-200 text-cardinal-900
-        ${isDragging ? "opacity-40" : ""}
-      `}
+      className="group flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] bg-cardinal-50 border border-cardinal-200 text-cardinal-900"
       title={`Manager: ${manager.name}`}
     >
       <UserCircle2 className="h-3 w-3 shrink-0" />
-      <span
-        ref={setNodeRef}
-        {...attributes}
-        {...listeners}
-        className="truncate font-medium flex-1 cursor-grab active:cursor-grabbing select-none"
-      >
-        {manager.name}
-      </span>
+      <span className="truncate font-medium flex-1 select-none">{manager.name}</span>
       <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onClear(beoId);
-        }}
+        type="button"
+        onClick={() => onSwap(beoId)}
+        title="Change manager"
+        className="opacity-0 group-hover:opacity-100 hover:opacity-70 transition"
+      >
+        <Plus className="h-2.5 w-2.5 rotate-45" />
+      </button>
+      <button
+        type="button"
+        onClick={() => onClear(beoId)}
         title="Clear manager"
         className="opacity-0 group-hover:opacity-100 hover:opacity-70 transition"
       >

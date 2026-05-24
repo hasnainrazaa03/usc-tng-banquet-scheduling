@@ -3,7 +3,7 @@
 A full-stack banquet operations platform for **USC Private Events & Conferences** — staff scheduling, BEO management, and venue operations across UPC, HSC, U Club, and USC Hotel.
 
 Built to mirror the existing paper workflow but improve it with AI-assisted
-scheduling, drag-and-drop editing, centralized server & BEO data, and a
+scheduling, click-to-add roster editing, centralized server & BEO data, and a
 printable weekly roster that matches the operational paper format.
 
 > **Important:** Scheduling preference is based on **seniority / tenure**
@@ -16,7 +16,6 @@ printable weekly roster that matches the operational paper format.
 - **Next.js 14 (App Router)** · TypeScript · Tailwind CSS
 - **PostgreSQL** via **Prisma**
 - **JWT auth** (`jose` + bcrypt) with role-based access control
-- **dnd-kit** for drag-and-drop scheduling
 - USC Cardinal & Gold theme, **Fraunces** display + **Inter** body
 
 ## Features Delivered (MVP)
@@ -26,10 +25,10 @@ printable weekly roster that matches the operational paper format.
 - **Master data file** at [data/banquet_master_data.json](data/banquet_master_data.json) — locations, rooms, event/function types, setup templates, roles, qualifications, shift codes, status codes (OFF/VAC/MLA/SICK/HOLIDAY/TRAINING), staffing rules, seniority rules, fairness rules, print layout, default templates, common patterns. Versioned and editable from the Master Data Editor page.
 - **AI-assisted scheduling engine** ([src/lib/scheduling-engine.ts](src/lib/scheduling-engine.ts)) — filters by availability/time-off/qualifications, applies seniority preference, fairness tiebreakers, weekly hour cap, min-rest, no double-booking. Records explainable reasons on every assignment.
 - **Auto-schedule + manual editing** — generate, lock assignments, fill unassigned only, manual override
-- **Drag-and-drop schedule board** with sidebar of available servers, role-by-role drop slots, conflict detection, lock/unlock per assignment. Phase 10 added an in-board **ScheduleOpsPanel** with collapsible **Run AI Schedule** and **Recent Schedules** cards, so the standalone "Generate Schedule" page is gone.
+- **Click-to-add schedule board (v0.5)** with per-BEO collapsible roster: every shift card shows a large `BEO #NNNN` header and stays collapsed until you expand it. Each unfilled role slot has a `+ Add SVR (N open)` button that opens a context-scoped picker drawer; click a server pill to assign. The same pattern drives manager assignment via a `+ Assign manager` button on the BEO header. Cross-venue same-day duplicates are allowed and flagged as an informational “Stacked” badge instead of being rejected. Phase 10 added an in-board **ScheduleOpsPanel** with collapsible **Run AI Schedule** and **Recent Schedules** cards, so the standalone “Generate Schedule” page is gone.
 - **Collapsible left sidebar (Phase 10)** — toggles between 256px and 64px to maximise board horizontal space; preference persists in `localStorage`.
 - **Editable Server Database (Phase 10)** — row-level Edit modal for name / employee ID / hire date; hire-date edits recompute seniority across the roster inside a single Prisma transaction.
-- **Manager drag-and-drop on the board (Phase 7)** — managers are no longer required at BEO-creation time. Coordinators save a BEO without one and assign later by dragging a manager pill from the new Managers drawer onto the BEO's manager slot on any shift card. Chips can be dragged between BEOs to reassign or X'd out to clear.
+- **Manager assignment on the board (Phase 7, refactored Phase 14)** — managers are no longer required at BEO-creation time. Coordinators save a BEO without one and assign later by clicking `+ Assign manager` on any BEO header, then picking a manager from the drawer. Chips can be replaced (hover → “change”) or X’d out to clear.
 - **Any-week navigation (Phase 7)** — the board page materialises a Thursday→Wednesday `Schedule` row on demand for whatever week the user is viewing, and auto-syncs every BEO in the DB whose `eventDate` lands in that window. Result: previous/next-week arrows work for every week of the year and BEOs already stored in the DB appear without anyone pressing "Generate Schedule" first.
 - **Printable weekly schedule** — servers down rows, days across columns, color-coded role/status cells, USC Cardinal header, revision date, meal-break reminder, status legend
 - **Role-based access (Phase 11)** — three roles: **Admin** (full system access), **Manager** (BEOs, schedules, time-off approvals, server assignment), **Server** (view own schedule, edit own availability, request own time-off). Sidebar nav and `requireRole` server gates enforce the policy end-to-end.
@@ -153,20 +152,20 @@ After running `npm run db:seed` you can verify the engine end-to-end:
 3. Previously **locked** assignments (lock icon, solid cardinal pill)
    are preserved; only open role slots get filled.
 
-**Drag-and-drop invalid feedback**
+**Click-to-add picker (replaces former drag-and-drop)**
 
-1. Open both the **Servers** and **Managers** drawers from the
-   right-side toggles.
-2. Drag a **server** pill over a **BEO manager slot** at the top of any
-   shift card — the slot rings red with a `Ban` icon and "Manager slot
-   only" label. Release: nothing happens.
-3. Drag a **manager** pill over any **role slot** (CAP/SVR/BAR) — the
-   slot rings red with "Server slot only". Release: nothing happens.
-4. Drag a **manager** pill over a **BEO manager slot** — cardinal ring,
-   drop is accepted, the manager is persisted via
+1. On any shift card click the chevron in the header to **expand** the
+   roster. (Use **Expand all** in the toolbar to open every card.)
+2. Click `+ Add SVR (N open)` on a role slot — a right-edge picker
+   drawer opens, pre-filtered to that role and showing every eligible
+   server. Click a server pill: they're assigned via
+   `POST /api/schedule/assign` and the drawer closes.
+3. To assign a manager, click `+ Assign manager` on the BEO header. A
+   manager picker opens; pick one and the BEO is updated via
    `PUT /api/beos/{id}/manager`.
-5. Drag a **server** pill over a **role slot** — cardinal ring, drop is
-   accepted via `POST /api/schedule/assign`.
+4. Cross-venue duplicates are intentional: if you assign a server who's
+   already on another shift that day, their pill shows an amber "Also
+   scheduled" badge — it's a heads-up, not a block.
 
 ---
 

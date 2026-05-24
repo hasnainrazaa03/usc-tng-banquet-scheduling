@@ -12,6 +12,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] — Phase 14 (BEO numbers, click-to-add, no DnD)
+
+### Added
+- **5-digit BEO number on every BEO.** New `BEO.beoNumber` column
+  (`String?`, indexed by `(eventDate, beoNumber)`) — typically 5 digits,
+  not globally unique but expected to be unique within an event date. The
+  field shows up on:
+  - the BEO create form (`/beos/new`) with numeric input, `pattern="\d{3,6}"`,
+    placeholder `"e.g. 24831"` and an `inputMode="numeric"` hint;
+  - the BEO edit form (`/beos/[id]/edit`) as a separate field from `UEPA #`;
+  - the BEO detail page (`/beos/[id]`) as a large `BEO #NNNN` heading;
+  - the BEO list (`/beos`) as a dedicated column;
+  - the schedule board day-grid: each BEO card's collapsed header now shows
+    `#NNNN` in bold cardinal display type so the number is the first thing
+    operators see;
+  - the CSV export (`/api/export?kind=beos`) as the first column.
+  Seeded BEOs receive deterministic numbers (10100+ for sample week, 21000+
+  range backfilled for pre-existing rows).
+- **Click-to-add server / manager assignment.** Replaces drag-and-drop.
+  Each unfilled role slot on a shift card renders a `Add SVR (N open)`
+  button; clicking opens a context-scoped picker drawer on the right edge
+  listing eligible servers. Click a server pill to assign. Same flow for
+  managers via the BEO header's `+ Assign manager` button.
+- **Per-BEO collapsible roster.** All shift cards start collapsed on board
+  open — the schedule no longer dumps every server name onto the screen.
+  Click a card header's chevron to expand and see role slots + chips, or
+  use the new toolbar `Expand all` / `Collapse all` buttons.
+- **Cross-venue concurrency allowed.** Managers can intentionally schedule
+  the same server / manager on overlapping shifts at different venues on
+  the same day. The board still flags it (amber "Stacked" badge + ring on
+  affected chips) for visibility, but the API no longer blocks. The
+  `@@unique([shiftId, serverId])` constraint still prevents exact-slot
+  duplicates.
+
+### Changed
+- **Schedule board UI refactored.** Removed all drag-and-drop state, drop
+  zones, drag overlays, and `@dnd-kit/*` dependencies. The always-open
+  side drawers are now picker modals that open from a "+" button. The
+  conflict statistic changed from `Conflicts` (red, blocking) to
+  `Stacked` (amber, informational).
+- **`/api/schedule/assign` no longer 409s on overlap.** Cross-shift
+  overlap detection moved client-side as a visual warning.
+- **Removed dependencies:** `@dnd-kit/core`, `@dnd-kit/sortable`,
+  `@dnd-kit/utilities`.
+
+### Migration
+- Schema: `BEO.beoNumber String?` added with composite index
+  `(eventDate, beoNumber)`. No data loss; existing rows backfilled by a
+  one-off script (`backfill-beonum.ts`, run once and removed) so all
+  pre-existing BEOs got numbers in the `21001..` range.
+- Run order: `npx prisma db push --accept-data-loss && npx prisma generate
+  && npx tsx prisma/seed.ts`.
+
+### Versioning
+- `0.4.0 → 0.5.0` — bumped in `package.json`.
+
+---
+
+## [0.4.0] — Phase 13
+
 ### Added
 - **Phase 13 — Time-off workflow, CSV exports, print filter, CI.**
   - **Time-off approve / deny workflow.** New `PATCH /api/time-off/[id]`

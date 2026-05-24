@@ -95,7 +95,8 @@ export async function POST(req: NextRequest) {
 
   const beo = await prisma.bEO.create({
     data: {
-      uepaNumber: body.beoNumber,
+      beoNumber: body.beoNumber,
+      uepaNumber: body.uepaNumber || null,
       postAs: body.postAs,
       account: body.account || null,
       bookingId: body.bookingId,

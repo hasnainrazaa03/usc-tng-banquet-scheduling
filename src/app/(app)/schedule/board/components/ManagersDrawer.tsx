@@ -1,32 +1,65 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Search, UserCircle2, X } from "lucide-react";
-import { DraggableManager } from "./Draggables";
-import type { Manager } from "../types";
+import { ManagerPickerPill } from "./Draggables";
+import type { Manager, Shift } from "../types";
 
 /**
- * Floating side panel for "Available Managers" — drag a manager from here
- * onto a BEO's manager slot on any shift card. Mirrors `ServersDrawer`:
- * non-modal right-edge panel with no scrim so drags from the panel land
- * cleanly on droppable cells in the schedule grid behind it.
+ * Phase 14: click-to-add manager picker. Opens scoped to a specific BEO;
+ * picking a manager PUTs them onto that BEO. Cross-venue duplicates are
+ * allowed (we just show an informational badge if the manager is already
+ * assigned elsewhere).
  */
 export function ManagersDrawer({
   managers,
   open,
+  context,
+  shifts,
   onClose,
+  onPick,
 }: {
   managers: Manager[];
   open: boolean;
+  context: { beoId: string } | null;
+  shifts: Shift[];
   onClose: () => void;
+  onPick: (managerId: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
+
+  // Build "already assigned" map: managerId → list of BEO #s elsewhere.
+  const alreadyOnByManager = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const sh of shifts) {
+      const beo = sh.event?.beo;
+      if (!beo?.manager) continue;
+      if (context && beo.id === context.beoId) continue;
+      const arr = map.get(beo.manager.id) ?? [];
+      const label = beo.beoNumber ? `BEO #${beo.beoNumber}` : beo.postAs;
+      if (!arr.includes(label)) arr.push(label);
+      map.set(beo.manager.id, arr);
+    }
+    const flat = new Map<string, string>();
+    for (const [k, v] of map.entries()) flat.set(k, v.join(", "));
+    return flat;
+  }, [shifts, context]);
 
   const filtered = managers.filter((m) => {
     if (query && !m.name.toLowerCase().includes(query.toLowerCase())) return false;
     if (roleFilter && m.role !== roleFilter) return false;
     return true;
   });
+
+  // Find the target BEO label for the header.
+  const targetBeoLabel = useMemo(() => {
+    if (!context) return null;
+    for (const sh of shifts) {
+      const b = sh.event?.beo;
+      if (b?.id === context.beoId) return b.beoNumber ? `BEO #${b.beoNumber}` : b.postAs;
+    }
+    return null;
+  }, [context, shifts]);
 
   return (
     <aside
@@ -38,10 +71,15 @@ export function ManagersDrawer({
       aria-hidden={!open}
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-ink/10 bg-gradient-to-r from-cardinal to-cardinal-700 text-white">
-        <div className="flex items-center gap-2">
-          <UserCircle2 className="h-4 w-4" />
-          <h2 className="font-display text-base">Available Managers</h2>
-          <span className="pill bg-white/15 border border-white/20 text-white text-[10px]">
+        <div className="flex items-center gap-2 min-w-0">
+          <UserCircle2 className="h-4 w-4 shrink-0" />
+          <div className="min-w-0">
+            <h2 className="font-display text-base leading-tight">Assign Manager</h2>
+            {targetBeoLabel && (
+              <div className="text-[10px] opacity-90 truncate">{targetBeoLabel}</div>
+            )}
+          </div>
+          <span className="pill bg-white/15 border border-white/20 text-white text-[10px] shrink-0">
             {filtered.length}
           </span>
         </div>
@@ -74,9 +112,7 @@ export function ManagersDrawer({
           <option value="ADMIN">Admin</option>
         </select>
         <div className="text-[10px] text-ink-muted">
-          Tip: drop a manager onto any BEO&apos;s manager slot to assign. Drop
-          on another BEO&apos;s slot to reassign; click the X on a chip to
-          clear.
+          Click a manager to assign them to this BEO.
         </div>
       </div>
 
@@ -86,7 +122,14 @@ export function ManagersDrawer({
             No managers match.
           </div>
         ) : (
-          filtered.map((m) => <DraggableManager key={m.id} manager={m} />)
+          filtered.map((m) => (
+            <ManagerPickerPill
+              key={m.id}
+              manager={m}
+              alreadyOn={alreadyOnByManager.get(m.id)}
+              onPick={() => onPick(m.id)}
+            />
+          ))
         )}
       </div>
     </aside>

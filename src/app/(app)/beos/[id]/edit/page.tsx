@@ -41,6 +41,7 @@ export default async function EditBEOPage({ params }: { params: { id: string } }
         postAs: beo.postAs,
         bookingId: beo.bookingId ?? "",
         uepaNumber: beo.uepaNumber ?? "",
+        beoNumber: beo.beoNumber ?? "",
         account: beo.account ?? "",
         contactName: beo.contactName ?? "",
         contactPhone: beo.contactPhone ?? "",

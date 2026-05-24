@@ -53,10 +53,11 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | Status | Feature | Owner | Since |
 | --- | --- | --- | --- |
 | ✅ | Thursday→Wednesday operational week (single source: `WEEK_STARTS_ON`) | `src/lib/week-config.ts` | v0.3 |
-| ✅ | Schedule board with drag-and-drop server chips | `src/app/(app)/schedule/board/**` | v0.2 |
-| ✅ | DnD scrim fix — drops register cleanly, grid no longer blurs when drawer open | `ServersDrawer.tsx`, `board.tsx` | v0.4 |
-| ✅ | Manager DnD parity — drawer-to-BEO drag shows the same `DragOverlay` preview, valid-target halo, and drop animation as the server flow | `Draggables.tsx`, `ShiftCard.tsx`, `board.tsx` | Phase 12 |
-| ✅ | Invalid-drop visual feedback — drop targets ring red with a `Ban` icon and inline "Server slot only" / "Manager slot only" label when the active drag kind doesn't match | `ShiftCard.tsx`, `board.tsx`, `types.ts` | Phase 12 |
+| ✅ | 5-digit `BEO #` field on every BEO (form + edit + detail header + list + CSV export + schedule board) | `prisma/schema.prisma`, `src/app/(app)/beos/**`, `src/app/(app)/schedule/board/components/ShiftCard.tsx` | v0.5 (Phase 14) |
+| ✅ | Click-to-add server / manager assignment — replaces drag-and-drop entirely; "+ Add SVR" buttons open a context-scoped picker drawer | `src/app/(app)/schedule/board/board.tsx`, `ShiftCard.tsx`, `ServersDrawer.tsx`, `ManagersDrawer.tsx` | v0.5 (Phase 14) |
+| ✅ | Per-BEO collapsible roster — shift cards collapsed by default; server names hidden until expanded; toolbar Expand-all / Collapse-all | `board.tsx`, `ShiftCard.tsx` | v0.5 (Phase 14) |
+| ✅ | Cross-venue same-person assignments allowed — system flags as informational "Stacked" badge instead of 409 blocking | `src/app/api/schedule/assign/route.ts`, `board.tsx` | v0.5 (Phase 14) |
+| ✅ | Schedule board (click-to-add chips on day & roster grids) | `src/app/(app)/schedule/board/**` | v0.2 (refactored v0.5) |
 | ✅ | Run AI Schedule / Fill Unassigned now actually fills — seeded `Availability` + `ServerQualification` + `RoleQualification` rows unblock the engine's hard filters | `prisma/seed.ts`, `src/lib/scheduling-engine.ts` | Phase 12 |
 | ✅ | Fill Unassigned toast — top-bar button surfaces a transient `N filled, M unfilled` toast (green/red) above the grid | `board.tsx` | Phase 12 |
 | ✅ | Week navigator with prev/next sibling weeks | `src/app/(app)/schedule/board/components/WeekNavigator.tsx` | v0.3 |
@@ -66,7 +67,7 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | ✅ | Multi-event-per-day server assignments (only blocks on real time overlap / availability / hour rules) | `src/lib/scheduling-engine.ts` | Phase 6 |
 | ✅ | Call-out / sick / no-show workflow with manager-confirmed replacements (AI-assisted second) | `src/app/api/schedule/callout/route.ts`, `src/app/api/schedule/replace/route.ts`, `src/app/(app)/schedule/board/components/CalloutModal.tsx` | Phase 6 |
 | ✅ | Manual override above required count shown with amber `↑` on shift card | `src/app/(app)/schedule/board/components/ShiftCard.tsx` | Phase 6 |
-| ✅ | Manager drag-and-drop on the board (drawer + per-BEO drop zone + chip-to-clear) | `src/app/(app)/schedule/board/components/ManagersDrawer.tsx`, `Draggables.tsx`, `ShiftCard.tsx`, `board.tsx`, `src/app/api/beos/[id]/manager/route.ts` | Phase 7 |
+| ✅ | Manager assignment on the board — click "+ Assign manager" on any BEO header to open a manager picker; cross-venue duplicates are flagged but allowed | `src/app/(app)/schedule/board/components/ManagersDrawer.tsx`, `Draggables.tsx`, `ShiftCard.tsx`, `board.tsx`, `src/app/api/beos/[id]/manager/route.ts` | v0.5 (Phase 14; replaces Phase 7 DnD) |
 | ✅ | Any-week navigation — board materialises Schedule on demand for arbitrary Thursday→Wednesday windows | `src/app/(app)/schedule/board/page.tsx`, `src/lib/beo-sync.ts` | Phase 7 |
 | ✅ | BEO auto-visibility — any BEO in the DB for the visible week appears without a pre-existing Schedule row | `src/app/(app)/schedule/board/page.tsx`, `src/lib/beo-sync.ts` | Phase 7 |
 | ✅ | Manager home-venue ownership persisted on `User.homeVenueCodes` (unblocks future ManagerScopeFilter) | `prisma/schema.prisma`, `prisma/seed.ts` | Phase 8 |

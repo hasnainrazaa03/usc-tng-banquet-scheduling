@@ -22,7 +22,12 @@ export default async function BEODetailPage({ params }: { params: { id: string }
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <Link href="/beos" className="text-sm text-cardinal hover:underline">← All BEOs</Link>
-          <h1 className="text-4xl mt-1">{beo.postAs}</h1>
+          {beo.beoNumber && (
+            <div className="mt-1 text-5xl font-display font-bold tracking-tight text-cardinal leading-none">
+              BEO #{beo.beoNumber}
+            </div>
+          )}
+          <h1 className="text-3xl mt-1">{beo.postAs}</h1>
           <p className="text-ink-muted">
             {beo.account ?? "—"} · {beo.bookingId ?? "—"} {beo.uepaNumber ? `· UEPA ${beo.uepaNumber}` : ""}
           </p>
