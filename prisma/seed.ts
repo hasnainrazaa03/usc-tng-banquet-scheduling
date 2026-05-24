@@ -27,6 +27,7 @@ import {
   EmploymentStatus,
   EmploymentType,
   UserRole,
+  DayOfWeek,
 } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import * as fs from "fs";
@@ -194,7 +195,7 @@ async function main() {
   console.log(`  ✓ ${imageCount}/${Object.keys(VENUE_IMAGES).length} venue images linked`);
 
   // 2) Roles & qualifications from the master data file (idempotent via code).
-  const md = raw as { roles: Array<{ code: string; name: string; color?: string }>;
+  const md = raw as { roles: Array<{ code: string; name: string; color?: string; qualifications?: string[] }>;
                       qualifications: Array<{ code: string; name: string }>; };
   console.log("→ Upserting roles & qualifications…");
   for (const r of md.roles) {
@@ -210,6 +211,24 @@ async function main() {
       create: { code: q.code, name: q.name },
       update: { name: q.name },
     });
+  }
+
+  // 2a) Role ↔ qualification links (idempotent). The scheduling engine consults
+  // `Role.qualificationsRequired` to filter eligible servers; without this
+  // link any qualification rules in master data are silently ignored.
+  for (const r of md.roles) {
+    if (!r.qualifications?.length) continue;
+    const role = await prisma.role.findUnique({ where: { code: r.code } });
+    if (!role) continue;
+    for (const qCode of r.qualifications) {
+      const q = await prisma.qualification.findUnique({ where: { code: qCode } });
+      if (!q) continue;
+      await prisma.roleQualification.upsert({
+        where: { roleId_qualificationId: { roleId: role.id, qualificationId: q.id } },
+        create: { roleId: role.id, qualificationId: q.id },
+        update: {},
+      });
+    }
   }
 
   // 3) Admin / manager / supervisor accounts + named department managers.
@@ -360,6 +379,54 @@ async function main() {
     createdServers.push({ id: server.id, hireDate, firstName: s.firstName, lastName: s.lastName });
   }
   console.log(`  ✓ ${createdServers.length} servers (${FULL_TIME.length} FT, ${PART_TIME.length} PT)`);
+
+  // 4a) Default Availability + ServerQualification rows so the scheduling
+  // engine actually fills shifts. Without these the engine rejects every
+  // candidate with "Outside stated availability" / "Missing qualification".
+  // Pattern: every active banquet employee is available all 7 days, broad
+  // window (06:00–23:59), and holds the RBS cert (required for CAP/BAR).
+  console.log("→ Seeding default availability + qualifications for roster…");
+  const rbs = await prisma.qualification.findUnique({ where: { code: "RBS" } });
+  const foodHandler = await prisma.qualification.findUnique({ where: { code: "FOOD_HANDLER" } });
+  const allDays: DayOfWeek[] = [
+    DayOfWeek.SUN,
+    DayOfWeek.MON,
+    DayOfWeek.TUE,
+    DayOfWeek.WED,
+    DayOfWeek.THU,
+    DayOfWeek.FRI,
+    DayOfWeek.SAT,
+  ];
+  let availCount = 0;
+  let qualCount = 0;
+  for (const r of createdServers) {
+    for (const dow of allDays) {
+      const existing = await prisma.availability.findFirst({
+        where: { serverId: r.id, dayOfWeek: dow },
+      });
+      if (existing) continue;
+      await prisma.availability.create({
+        data: {
+          serverId: r.id,
+          dayOfWeek: dow,
+          startTime: "06:00",
+          endTime: "23:59",
+          preference: 0,
+          notes: "Default seeded availability (full-day window)",
+        },
+      });
+      availCount++;
+    }
+    for (const q of [rbs, foodHandler].filter(Boolean) as { id: string }[]) {
+      await prisma.serverQualification.upsert({
+        where: { serverId_qualificationId: { serverId: r.id, qualificationId: q.id } },
+        create: { serverId: r.id, qualificationId: q.id, obtainedDate: r.hireDate },
+        update: {},
+      });
+      qualCount++;
+    }
+  }
+  console.log(`  ✓ ${availCount} availability rows + ${qualCount} qualification links`);
 
   // 5) Seniority records — derived from hireDate, ranked across the whole roster.
   console.log("→ Computing seniority records…");
@@ -765,6 +832,119 @@ async function seedExtraBeos(weekStart: Date, adminUserId: string) {
       setupNotes: "Buffet stations × 3, family-style rounds",
       status: BEOStatus.CONFIRMED, capCount: 1, svrCount: 8, barCount: 2,
       eventName: "Brunch Buffet",
+    },
+    // ---- June / July sweep (Phase 12 additions) ----
+    {
+      bookingSuffix: "P12-001",
+      postAs: "June Donor Cultivation Dinner",
+      account: "USC Office of Advancement",
+      contactName: "Eddie Cuevas", contactPhone: "213-555-0143", contactEmail: "eddie.cuevas@usc.edu",
+      cateringManagerEmail: "eddie.cuevas@usc.edu",
+      locationCode: "UPC-MAIN", roomCode: "TNG",
+      daysFromWeekStart: 14, startHHMM: "18:30", endHHMM: "22:30",
+      expectedGuests: 120,
+      menu: { plated: ["Heirloom tomato", "Lamb chop", "Crème brûlée"], bar: ["Premium open bar"] },
+      setupNotes: "Rounds of 10, head table for 12, ambient candles",
+      status: BEOStatus.CONFIRMED, capCount: 1, svrCount: 9, barCount: 3,
+      eventName: "Donor Dinner",
+    },
+    {
+      bookingSuffix: "P12-002",
+      postAs: "Summer Orientation Welcome Lunch",
+      account: "USC Orientation Programs",
+      contactName: "Juanita Gomez", contactPhone: "213-555-0181", contactEmail: "juanita.gomez@usc.edu",
+      cateringManagerEmail: "juanita.gomez@usc.edu",
+      locationCode: "UPC-MAIN", roomCode: "TROJAN",
+      daysFromWeekStart: 18, startHHMM: "11:30", endHHMM: "14:00",
+      expectedGuests: 420,
+      menu: { buffet: ["Sandwich bar", "Salad station", "Cookie tray"], beverage: ["Iced tea, lemonade, water"] },
+      setupNotes: "Cafeteria-style flow, 6 buffet lines, family seating",
+      status: BEOStatus.CONFIRMED, capCount: 2, svrCount: 16, barCount: 0,
+      eventName: "Orientation Lunch",
+    },
+    {
+      bookingSuffix: "P12-003",
+      postAs: "Marshall Executive Education Reception",
+      account: "Marshall School of Business",
+      contactName: "Levi Flefil", contactPhone: "213-555-0144", contactEmail: "levi.flefil@usc.edu",
+      cateringManagerEmail: "levi.flefil@usc.edu",
+      locationCode: "UCLUB-MAIN", roomCode: "UCLUB",
+      daysFromWeekStart: 25, startHHMM: "18:00", endHHMM: "20:30",
+      expectedGuests: 85,
+      menu: { reception: ["International cheese", "Passed canapés"], bar: ["Wine / beer / signature"] },
+      status: BEOStatus.CONFIRMED, capCount: 1, svrCount: 4, barCount: 2,
+      eventName: "Executive Reception",
+    },
+    {
+      bookingSuffix: "P12-004",
+      postAs: "Pre-Commencement Faculty Breakfast",
+      account: "USC Office of the Provost",
+      contactName: "Jovon O'Connor", contactPhone: "213-555-0177", contactEmail: "jovon.oconnor@usc.edu",
+      cateringManagerEmail: "jovon.oconnor@usc.edu",
+      locationCode: "USCH-MAIN", roomCode: "HOTEL-GBR",
+      daysFromWeekStart: 30, startHHMM: "07:30", endHHMM: "09:30",
+      expectedGuests: 200,
+      menu: { breakfast: ["Hot buffet", "Pastry display", "Yogurt parfait bar"], beverage: ["Coffee / tea / fresh juice"] },
+      setupNotes: "Rounds of 10, AV podium, three buffet lines",
+      status: BEOStatus.CONFIRMED, capCount: 1, svrCount: 8, barCount: 0,
+      eventName: "Commencement Breakfast",
+    },
+    {
+      bookingSuffix: "P12-005",
+      postAs: "USC Athletics Hall of Fame Gala",
+      account: "USC Athletics",
+      contactName: "Eddie Cuevas", contactPhone: "213-555-0143", contactEmail: "eddie.cuevas@usc.edu",
+      cateringManagerEmail: "eddie.cuevas@usc.edu",
+      locationCode: "UPC-MAIN", roomCode: "TNG",
+      daysFromWeekStart: 32, startHHMM: "17:00", endHHMM: "23:00",
+      expectedGuests: 480,
+      menu: { reception: ["Cocktail hour passed"], plated: ["Caesar", "Filet & sea bass duet", "Trio of desserts"], bar: ["Top-shelf open bar"] },
+      setupNotes: "48 rounds of 10, stage with screens, dance floor",
+      specialInstructions: "Live broadcast — coordinate with AV by T-2 days",
+      status: BEOStatus.CONFIRMED, capCount: 3, svrCount: 32, barCount: 8,
+      eventName: "Hall of Fame Gala",
+    },
+    {
+      bookingSuffix: "P12-006",
+      postAs: "HSC Research Symposium Lunch",
+      account: "Keck School of Medicine",
+      contactName: "Leticia Velasquez", contactPhone: "213-555-0162", contactEmail: "leticia.velasquez@usc.edu",
+      cateringManagerEmail: "leticia.velasquez@usc.edu",
+      locationCode: "HSC-MAIN", roomCode: "HSC-CC",
+      daysFromWeekStart: 38, startHHMM: "12:00", endHHMM: "14:00",
+      expectedGuests: 140,
+      menu: { buffet: ["Mediterranean spread", "Grain bowls", "Fruit display"], beverage: ["Iced tea / sparkling water"] },
+      setupNotes: "Rounds of 8 + poster gallery flow",
+      status: BEOStatus.TENTATIVE, capCount: 1, svrCount: 7, barCount: 0,
+      eventName: "Research Lunch",
+    },
+    {
+      bookingSuffix: "P12-007",
+      postAs: "Cinema Society Mid-Summer Mixer",
+      account: "USC School of Cinematic Arts",
+      contactName: "Alonso Recinos", contactPhone: "213-555-0199", contactEmail: "alonso.recinos@usc.edu",
+      cateringManagerEmail: "alonso.recinos@usc.edu",
+      locationCode: "UCLUB-MAIN", roomCode: "SCRIPTORIUM",
+      daysFromWeekStart: 45, startHHMM: "19:00", endHHMM: "22:00",
+      expectedGuests: 110,
+      menu: { reception: ["Themed canapés", "Popcorn / candy bar"], bar: ["Signature cocktails / beer / wine"] },
+      setupNotes: "Cocktail tables, lounge clusters, screening alcove",
+      status: BEOStatus.CONFIRMED, capCount: 1, svrCount: 5, barCount: 2,
+      eventName: "Cinema Mixer",
+    },
+    {
+      bookingSuffix: "P12-008",
+      postAs: "Independence Day Family Picnic",
+      account: "USC Staff Assembly",
+      contactName: "Juanita Gomez", contactPhone: "213-555-0181", contactEmail: "juanita.gomez@usc.edu",
+      cateringManagerEmail: "juanita.gomez@usc.edu",
+      locationCode: "UPC-MAIN", roomCode: "MCKAYS",
+      daysFromWeekStart: 44, startHHMM: "11:00", endHHMM: "15:00",
+      expectedGuests: 300,
+      menu: { buffet: ["BBQ classics", "Watermelon bar", "Ice-cream cart"], bar: ["Lemonade / iced tea / beer garden"] },
+      setupNotes: "Outdoor picnic tables, kids' zone, photo booth",
+      status: BEOStatus.CONFIRMED, capCount: 2, svrCount: 14, barCount: 4,
+      eventName: "Holiday Picnic",
     },
   ];
 

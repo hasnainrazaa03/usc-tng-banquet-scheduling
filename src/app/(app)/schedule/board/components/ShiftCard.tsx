@@ -1,8 +1,8 @@
 "use client";
 import { useDroppable } from "@dnd-kit/core";
-import { UserCircle2 } from "lucide-react";
+import { Ban, UserCircle2 } from "lucide-react";
 import { AssignmentChip, ManagerChip } from "./Draggables";
-import { ROLE_COLORS, STATUS_COLORS, fmtTime, type Assignment, type Shift } from "../types";
+import { ROLE_COLORS, STATUS_COLORS, fmtTime, type Assignment, type DragKind, type Shift } from "../types";
 
 /**
  * Drop zone on a shift card that accepts a manager drag (id `manager:*`).
@@ -15,23 +15,38 @@ export function ManagerSlot({
   beoId,
   manager,
   onClearManager,
+  activeKind,
 }: {
   beoId: string;
   manager: { id: string; name: string } | null;
   onClearManager?: (beoId: string) => void;
+  activeKind?: DragKind;
 }) {
   const { isOver, setNodeRef } = useDroppable({ id: `beo-mgr:${beoId}` });
+  // A drag is active and we know its kind — anything other than `manager` is
+  // an invalid drop onto this slot (servers / existing assignments belong on
+  // a RoleSlot). We render a red ring + ban icon and a not-allowed cursor.
+  const invalid =
+    isOver && activeKind != null && activeKind !== "manager";
   return (
     <div
       ref={setNodeRef}
       className={`
         mt-1 rounded-md border px-1.5 py-0.5 transition-all
-        ${isOver ? "border-cardinal bg-cardinal/10 ring-2 ring-cardinal/30" : ""}
+        ${invalid ? "border-red-500 bg-red-50 ring-2 ring-red-400/60 cursor-not-allowed" : ""}
+        ${!invalid && isOver ? "border-cardinal bg-cardinal/10 ring-2 ring-cardinal/30" : ""}
         ${!isOver && manager ? "border-cardinal-200/60 bg-cardinal-50/40" : ""}
         ${!isOver && !manager ? "border-dashed border-ink/20 bg-canvas-soft/40" : ""}
+        ${activeKind === "manager" && !isOver ? "animate-pulse border-cardinal/50" : ""}
       `}
+      title={invalid ? "Only managers can be dropped here" : undefined}
     >
-      {manager ? (
+      {invalid ? (
+        <div className="flex items-center gap-1 text-[10px] text-red-700 font-semibold">
+          <Ban className="h-3 w-3" />
+          <span>Manager slot only</span>
+        </div>
+      ) : manager ? (
         <ManagerChip
           beoId={beoId}
           manager={manager}
@@ -40,7 +55,7 @@ export function ManagerSlot({
       ) : (
         <div className="flex items-center gap-1 text-[10px] text-ink-muted italic">
           <UserCircle2 className="h-3 w-3" />
-          <span>Drop manager here</span>
+          <span>{activeKind === "manager" ? "Drop manager here" : "Drop manager here"}</span>
         </div>
       )}
     </div>
@@ -60,6 +75,7 @@ export function RoleSlot({
   onToggleLock,
   onCallout,
   conflictIds,
+  activeKind,
 }: {
   shiftId: string;
   role: { code: string; name: string; color: string | null };
@@ -69,6 +85,7 @@ export function RoleSlot({
   onToggleLock: (id: string, locked: boolean) => void;
   onCallout?: (a: Assignment) => void;
   conflictIds: Set<string>;
+  activeKind?: DragKind;
 }) {
   const { isOver, setNodeRef } = useDroppable({ id: `shift:${shiftId}:${role.code}` });
   // Called-out assignments don't count toward the filled total, freeing the
@@ -77,15 +94,21 @@ export function RoleSlot({
   const open = count - active.length;
   const tone = ROLE_COLORS[role.code] ?? { bg: "bg-white", text: "text-ink", border: "border-ink/15" };
 
+  // Role slots accept server pills and existing assignment chips. A manager
+  // drag landing here is invalid — paint red.
+  const invalid = isOver && activeKind === "manager";
+
   return (
     <div
       ref={setNodeRef}
       className={`
         rounded-md border transition-all px-1.5 py-1
-        ${isOver ? "border-cardinal bg-cardinal/10 ring-2 ring-cardinal/30" : ""}
+        ${invalid ? "border-red-500 bg-red-50 ring-2 ring-red-400/60 cursor-not-allowed" : ""}
+        ${!invalid && isOver ? "border-cardinal bg-cardinal/10 ring-2 ring-cardinal/30" : ""}
         ${!isOver && open > 0 ? "border-dashed border-red-300 bg-red-50/40" : ""}
         ${!isOver && open === 0 ? `${tone.border} ${tone.bg}` : ""}
       `}
+      title={invalid ? "Managers can't be assigned to a role slot — drop on the BEO manager slot instead" : undefined}
     >
       <div className="flex items-center justify-between text-[10px] uppercase tracking-wider mb-1">
         <span className={`font-semibold ${tone.text}`}>{role.code}</span>
@@ -104,7 +127,13 @@ export function RoleSlot({
             conflict={conflictIds.has(a.id)}
           />
         ))}
-        {open > 0 && (
+        {invalid && (
+          <div className="flex items-center justify-center gap-1 text-[10px] text-red-700 italic py-0.5">
+            <Ban className="h-3 w-3" />
+            <span>Server slot only</span>
+          </div>
+        )}
+        {!invalid && open > 0 && (
           <div className="text-center text-[10px] text-red-700/80 italic py-0.5">
             {open} open
           </div>
@@ -122,6 +151,7 @@ export function ShiftCard({
   onCallout,
   onClearManager,
   conflictIds,
+  activeKind,
 }: {
   shift: Shift;
   onRemove: (id: string) => void;
@@ -129,6 +159,7 @@ export function ShiftCard({
   onCallout?: (a: Assignment) => void;
   onClearManager?: (beoId: string) => void;
   conflictIds: Set<string>;
+  activeKind?: DragKind;
 }) {
   if (shift.statusCode !== "NONE") {
     return (
@@ -188,6 +219,7 @@ export function ShiftCard({
             beoId={beoId}
             manager={manager}
             onClearManager={onClearManager}
+            activeKind={activeKind}
           />
         )}
       </div>
@@ -205,6 +237,7 @@ export function ShiftCard({
               onToggleLock={onToggleLock}
               onCallout={onCallout}
               conflictIds={conflictIds}
+              activeKind={activeKind}
             />
           );
         })}

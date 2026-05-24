@@ -125,6 +125,51 @@ environment variables, and post-deploy verification.
 
 ---
 
+## Testing the auto-scheduler (Phase 12)
+
+After running `npm run db:seed` you can verify the engine end-to-end:
+
+**Run AI Schedule**
+
+1. Sign in at `/login` as `admin@tng.usc.edu` / `password123`.
+2. Open **Schedule → Board** in the sidebar.
+3. Expand the **Run AI Schedule** panel above the grid.
+4. Pick any operational week (Thu → Wed) that has BEOs (the seed creates
+   18 of them across May → July). Optionally tick *Clear unlocked
+   assignments first* to start from a clean slate.
+5. Click **Run Auto-Schedule**.
+6. The inline result should report `filled > 0` and the board should now
+   show CAP / SVR / BAR chips populated on every shift card, respecting:
+   - per-server availability windows (default 06:00–23:59 / all days),
+   - RBS qualification for CAP and BAR (every seeded server holds RBS),
+   - 10 h minimum rest between shifts,
+   - 40 h weekly cap and 6-day max-consecutive guard.
+
+**Fill Unassigned** (top-bar wand icon)
+
+1. With any week open on the board, click **Fill Unassigned**.
+2. A green toast appears above the grid: `Fill Unassigned: N filled, M
+   still unfilled.` (red toast if the API failed). Auto-dismisses in 6 s.
+3. Previously **locked** assignments (lock icon, solid cardinal pill)
+   are preserved; only open role slots get filled.
+
+**Drag-and-drop invalid feedback**
+
+1. Open both the **Servers** and **Managers** drawers from the
+   right-side toggles.
+2. Drag a **server** pill over a **BEO manager slot** at the top of any
+   shift card — the slot rings red with a `Ban` icon and "Manager slot
+   only" label. Release: nothing happens.
+3. Drag a **manager** pill over any **role slot** (CAP/SVR/BAR) — the
+   slot rings red with "Server slot only". Release: nothing happens.
+4. Drag a **manager** pill over a **BEO manager slot** — cardinal ring,
+   drop is accepted, the manager is persisted via
+   `PUT /api/beos/{id}/manager`.
+5. Drag a **server** pill over a **role slot** — cardinal ring, drop is
+   accepted via `POST /api/schedule/assign`.
+
+---
+
 ## Project structure
 
 ```

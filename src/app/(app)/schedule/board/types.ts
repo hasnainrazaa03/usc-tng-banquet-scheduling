@@ -90,6 +90,17 @@ export type SiblingSchedule = {
   status: string;
 };
 
+/**
+ * The kind of item currently being dragged. Passed down to drop targets so
+ * each slot can render valid/invalid feedback (e.g. a ManagerSlot lights up
+ * red when a server pill is dragged over it).
+ *   - `server`     — server pill from the drawer
+ *   - `assignment` — existing assignment chip being re-slotted
+ *   - `manager`    — manager pill from the drawer or an existing manager chip
+ *   - `null`       — nothing being dragged
+ */
+export type DragKind = "server" | "assignment" | "manager" | null;
+
 // Re-export the operational week constants so existing imports keep working
 // without each component needing to reach into `@/lib/week-config`.
 import {

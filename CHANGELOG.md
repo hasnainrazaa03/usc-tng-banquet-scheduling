@@ -13,6 +13,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 12 — Drag-and-drop parity & engine fixes.**
+  - **Manager DnD parity.** Dragging a manager from the Managers drawer (or
+    re-dragging an existing `ManagerChip`) now shows the same `DragOverlay`
+    preview, hover ring, and drop animation as the server flow. Drop target
+    on every BEO header (`ManagerSlot`) pulses with a `border-cardinal/50`
+    halo while a manager drag is in flight to make eligible drop zones
+    obvious at a glance.
+  - **Invalid-drop visual feedback.** Each drop target now knows the active
+    drag kind (`server` / `assignment` / `manager`) via a new `DragKind`
+    type plumbed from `board.tsx` through `ShiftCard` to `RoleSlot` and
+    `ManagerSlot`. Cross-type drops (e.g. server pill dragged over a
+    manager slot, or manager pill dragged over a role slot) paint red
+    (`ring-red-400/60`, `cursor-not-allowed`), surface a `Ban` icon, and
+    show an inline "Manager slot only" / "Server slot only" label. The
+    existing `onDragEnd` already short-circuits these cases, so no
+    accidental API writes occur.
+  - **Run AI Schedule / Fill Unassigned fix.** Root cause: the seed never
+    inserted `Availability` rows for the 32 banquet employees, so
+    `inAvailability(server, start, end)` in `scheduling-engine.ts`
+    rejected every candidate, and the engine returned `{filled:0,
+    unfilled:N}` for every invocation. The seed now creates 7 default
+    Availability rows per server (06:00–23:59 window, all weekdays) plus
+    `ServerQualification` links to `RBS` and `FOOD_HANDLER`, and seeds the
+    missing `RoleQualification` join from `data/banquet_master_data.json`
+    so CAP/BAR's RBS requirement is actually enforced.
+  - **Top-bar "Fill Unassigned" feedback.** The button now parses the
+    response and surfaces a transient toast above the schedule grid
+    showing `N filled, M still unfilled` (green) or the error message
+    (red). Auto-dismisses after 6 s.
+  - **June/July BEO seed expansion.** Added 8 new realistic BEOs
+    (`P12-001`…`P12-008`) spanning early June through mid-July across
+    UPC/HSC/UCLUB/USCH venues with varied AM/lunch/dinner/reception
+    times and staffing levels, including a 480-guest Hall of Fame Gala
+    and a 420-guest Orientation Lunch. Total seeded ExtraBEOs is now 18.
+
+### How to test (Phase 12)
+
+**Run AI Schedule**
+1. Sign in as `admin@tng.usc.edu` / `password123`.
+2. Open **Schedule Board** and expand the **Run AI Schedule** panel.
+3. Pick any upcoming operational week (Thu→Wed) and optionally tick
+   *Clear unlocked assignments first*.
+4. Click **Run Auto-Schedule**.
+5. Verify the inline result shows `filled > 0`. Refresh — shift cards
+   should now show CAP / SVR / BAR chips populated from the 32-server
+   roster, respecting min-rest, weekly cap, and seniority preference.
+
+**Fill Unassigned**
+1. On the **Schedule Board** click the top-bar **Fill Unassigned** button
+   (wand icon).
+2. Watch for the green toast above the grid: `Fill Unassigned: X filled,
+   Y still unfilled.`
+3. Confirm previously-locked assignments are untouched (lock icon, solid
+   cardinal background); only open role slots got filled.
+
+**Invalid drop feedback**
+1. From the **Managers** drawer, drag a manager pill. As you hover any
+   **role slot** (CAP/SVR/BAR), the slot should ring red with a `Ban`
+   icon and a "Server slot only" label; releasing has no effect.
+2. From the **Servers** drawer, drag a server pill. As you hover any
+   **BEO manager slot**, it rings red with "Manager slot only"; release
+   has no effect.
+3. Dragging a manager over a manager slot, or a server over a role slot,
+   still shows the original cardinal ring + persists normally.
+
+### Added
 - **Phase 11 — BEO editing.** New `/beos/[id]/edit` page (ADMIN/MANAGER only)
   with full form coverage of every editable field plus a status dropdown
   (DRAFT / CONFIRMED / TENTATIVE / CANCELLED / COMPLETED). Backed by

@@ -55,6 +55,10 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | ✅ | Thursday→Wednesday operational week (single source: `WEEK_STARTS_ON`) | `src/lib/week-config.ts` | v0.3 |
 | ✅ | Schedule board with drag-and-drop server chips | `src/app/(app)/schedule/board/**` | v0.2 |
 | ✅ | DnD scrim fix — drops register cleanly, grid no longer blurs when drawer open | `ServersDrawer.tsx`, `board.tsx` | v0.4 |
+| ✅ | Manager DnD parity — drawer-to-BEO drag shows the same `DragOverlay` preview, valid-target halo, and drop animation as the server flow | `Draggables.tsx`, `ShiftCard.tsx`, `board.tsx` | Phase 12 |
+| ✅ | Invalid-drop visual feedback — drop targets ring red with a `Ban` icon and inline "Server slot only" / "Manager slot only" label when the active drag kind doesn't match | `ShiftCard.tsx`, `board.tsx`, `types.ts` | Phase 12 |
+| ✅ | Run AI Schedule / Fill Unassigned now actually fills — seeded `Availability` + `ServerQualification` + `RoleQualification` rows unblock the engine's hard filters | `prisma/seed.ts`, `src/lib/scheduling-engine.ts` | Phase 12 |
+| ✅ | Fill Unassigned toast — top-bar button surfaces a transient `N filled, M unfilled` toast (green/red) above the grid | `board.tsx` | Phase 12 |
 | ✅ | Week navigator with prev/next sibling weeks | `src/app/(app)/schedule/board/components/WeekNavigator.tsx` | v0.3 |
 | ✅ | Adjacent-week seeds (prev + next) for demo continuity | `prisma/seed.ts` | v0.3 |
 | ✅ | Scoring plugin contract + registry stub | `src/lib/scheduling/plugins.ts` | v0.3 |

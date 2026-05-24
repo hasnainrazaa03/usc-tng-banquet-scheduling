@@ -27,6 +27,37 @@ confirms the assignment lands on the right shift.
 
 ## Resolved (recent)
 
+### ✅ Phase 12 — Run AI Schedule / Fill Unassigned silently filled nothing
+**Symptom:** clicking either button returned HTTP 200 but always produced
+`{filled: 0, unfilled: N}`; no shift cards ever populated. No console error.
+**Root cause:** `prisma/seed.ts` never inserted `Availability` rows for the
+32 banquet employees. The hard filter `inAvailability(server, start, end)` in
+`src/lib/scheduling-engine.ts` returned `false` for every candidate on every
+shift, so the engine had zero eligible servers to assign.
+**Fix:** seed now creates 7 default `Availability` rows per server (06:00–
+23:59 window, all weekdays) and links each server to `RBS` + `FOOD_HANDLER`
+qualifications. The `RoleQualification` join is also now seeded from
+`data/banquet_master_data.json` so CAP/BAR's RBS requirement is enforced.
+
+### ✅ Phase 12 — Manager DnD lacked drag preview & target visibility
+**Symptom:** dragging a manager from the drawer didn't show a preview chip
+and the BEO manager slot didn't visually highlight as a valid target.
+**Root cause:** while `DraggableManager` and the `DragOverlay` case existed,
+no per-target awareness of the active drag kind meant role slots and manager
+slots looked identical regardless of what was in flight.
+**Fix:** new `DragKind` type plumbed `board.tsx → ShiftCard → RoleSlot /
+ManagerSlot`; `ManagerSlot` now pulses a cardinal halo while a manager is
+being dragged, matching server-flow parity.
+
+### ✅ Phase 12 — No invalid-drop indicator across drop targets
+**Symptom:** dragging a server over a BEO manager slot (or vice versa) gave
+no feedback. The drop silently did nothing, leaving users wondering why.
+**Root cause:** drop targets had no knowledge of the active drag kind.
+**Fix:** invalid drop targets now ring red with a `Ban` icon and a "Server
+slot only" / "Manager slot only" inline label and `cursor-not-allowed`. The
+`onDragEnd` switch already returns early on cross-type drops so no API write
+is attempted.
+
 ### ✅ Phase 11 — BEO records were view-only
 **Symptom:** Managers had no way to correct a typo, change a venue, or
 mark a BEO COMPLETED without re-creating it from scratch.

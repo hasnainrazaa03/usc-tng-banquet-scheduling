@@ -27,7 +27,7 @@ import { ManagersDrawer } from "./components/ManagersDrawer";
 import { WeekNavigator } from "./components/WeekNavigator";
 import { ScheduleOpsPanel } from "./components/ScheduleOpsPanel";
 import { CalloutModal } from "./components/CalloutModal";
-import { DOW, dayKey, type BoardData, type Shift, type Assignment } from "./types";
+import { DOW, dayKey, type BoardData, type DragKind, type Shift, type Assignment } from "./types";
 
 type View = "day" | "roster";
 type Density = "comfortable" | "compact";
@@ -62,6 +62,11 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
   const [shifts, setShifts] = useState<Shift[]>(data.shifts);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Toast for AI / Fill Unassigned outcome (auto-clears).
+  const [runToast, setRunToast] = useState<
+    | { kind: "ok" | "err"; message: string }
+    | null
+  >(null);
   // Call-out + replacement modal target. `null` means the modal is closed.
   const [calloutTarget, setCalloutTarget] = useState<{ a: Assignment; shift: Shift } | null>(null);
 
@@ -287,13 +292,48 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
 
   async function rerunUnlocked() {
     setBusy(true);
-    await fetch("/api/schedule/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scheduleId: data.schedule.id, clearFirst: false }),
-    });
-    setBusy(false);
-    router.refresh();
+    setRunToast(null);
+    try {
+      const res = await fetch("/api/schedule/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduleId: data.schedule.id, clearFirst: false }),
+      });
+      const raw = await res.text();
+      let parsed:
+        | { filled?: number; unfilled?: number; error?: string }
+        | null = null;
+      if (raw) {
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          parsed = { error: `Server returned ${res.status}` };
+        }
+      }
+      if (!res.ok || parsed?.error) {
+        setRunToast({
+          kind: "err",
+          message: parsed?.error ?? `Request failed (${res.status})`,
+        });
+      } else {
+        setRunToast({
+          kind: "ok",
+          message: `Fill Unassigned: ${parsed?.filled ?? 0} filled, ${
+            parsed?.unfilled ?? 0
+          } still unfilled.`,
+        });
+        router.refresh();
+      }
+    } catch (err) {
+      setRunToast({
+        kind: "err",
+        message: err instanceof Error ? err.message : "Network error",
+      });
+    } finally {
+      setBusy(false);
+      // Auto-dismiss after 6 s
+      setTimeout(() => setRunToast(null), 6000);
+    }
   }
 
   const onRemove = async (aid: string) => {
@@ -334,6 +374,18 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
     ? shifts
         .flatMap((sh) => sh.assignments)
         .find((a) => a.id === activeId.replace("assignment:", ""))
+    : null;
+
+  // Kind of drag in flight — plumbed into ShiftCard so drop targets can
+  // render valid/invalid feedback (red ring for cross-type drops).
+  const activeKind: DragKind = activeId
+    ? activeId.startsWith("server:")
+      ? "server"
+      : activeId.startsWith("manager:")
+        ? "manager"
+        : activeId.startsWith("assignment:")
+          ? "assignment"
+          : null
     : null;
 
   const totalReq = shifts.reduce(
@@ -428,6 +480,19 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
         weekEnd={data.schedule.weekEnd}
         siblings={data.siblingSchedules ?? []}
       />
+
+      {runToast && (
+        <div
+          role="status"
+          className={`rounded-lg border px-3 py-2 text-sm ${
+            runToast.kind === "ok"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : "border-red-200 bg-red-50 text-red-900"
+          }`}
+        >
+          {runToast.message}
+        </div>
+      )}
 
       <ScheduleOpsPanel
         currentScheduleId={data.schedule.id}
@@ -563,6 +628,7 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
                               onCallout={openCallout}
                               onClearManager={onClearManager}
                               conflictIds={conflictIds}
+                              activeKind={activeKind}
                             />
                           ))
                         )}
