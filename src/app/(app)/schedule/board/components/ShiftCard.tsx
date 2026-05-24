@@ -211,7 +211,7 @@ export function ShiftCard({
             <ChevronRight className="h-3.5 w-3.5 text-ink-muted shrink-0" />
           )}
           {beoNumber && (
-            <span className="font-display font-bold text-2xl leading-none text-cardinal shrink-0">
+            <span className="font-display font-bold text-base leading-none text-cardinal shrink-0">
               #{beoNumber}
             </span>
           )}

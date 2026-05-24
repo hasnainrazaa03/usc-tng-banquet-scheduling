@@ -53,7 +53,10 @@ states. For history of *shipped* changes see `CHANGELOG.md`.
 | Status | Feature | Owner | Since |
 | --- | --- | --- | --- |
 | ✅ | Thursday→Wednesday operational week (single source: `WEEK_STARTS_ON`) | `src/lib/week-config.ts` | v0.3 |
-| ✅ | 5-digit `BEO #` field on every BEO (form + edit + detail header + list + CSV export + schedule board) | `prisma/schema.prisma`, `src/app/(app)/beos/**`, `src/app/(app)/schedule/board/components/ShiftCard.tsx` | v0.5 (Phase 14) |
+| ✅ | 5-digit `BEO #` field on every BEO (form + edit + detail header + list + CSV export + schedule board) | `prisma/schema.prisma`, `src/app/(app)/beos/**`, `src/app/(app)/schedule/board/components/ShiftCard.tsx` | v0.5 (Phase 14, font tuned in v0.5.1) |
+| ✅ | Schedule board deduplicates BEOs per day — multi-section BEOs collapse to one card; stale `syncBeoShifts` rows are no longer rendered twice | `src/app/(app)/schedule/board/board.tsx`, `src/lib/beo-sync.ts` | v0.5.1 (Phase 15) |
+| ✅ | Realistic seeded availability matrix — 6 rotating patterns (mornings / afternoons / weekends / split / full / evenings) so the auto-scheduler's availability filter is actually exercised | `prisma/seed.ts` | v0.5.1 (Phase 15) |
+| ✅ | Fresh DB ships with **zero** pre-assigned servers and **zero** pre-picked BEO managers — AI scheduling / click-to-add fills from scratch | `prisma/seed.ts` | v0.5.1 (Phase 15) |
 | ✅ | Click-to-add server / manager assignment — replaces drag-and-drop entirely; "+ Add SVR" buttons open a context-scoped picker drawer | `src/app/(app)/schedule/board/board.tsx`, `ShiftCard.tsx`, `ServersDrawer.tsx`, `ManagersDrawer.tsx` | v0.5 (Phase 14) |
 | ✅ | Per-BEO collapsible roster — shift cards collapsed by default; server names hidden until expanded; toolbar Expand-all / Collapse-all | `board.tsx`, `ShiftCard.tsx` | v0.5 (Phase 14) |
 | ✅ | Cross-venue same-person assignments allowed — system flags as informational "Stacked" badge instead of 409 blocking | `src/app/api/schedule/assign/route.ts`, `board.tsx` | v0.5 (Phase 14) |

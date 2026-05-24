@@ -31,6 +31,27 @@ code paths and `@dnd-kit/*` dependencies are gone.
 
 ## Resolved (recent)
 
+### ✅ v0.5.1 (Phase 15) — Duplicate BEO cards on the schedule board
+**Symptom:** the same BEO appeared as 2–3 cards on the same day on the board.
+**Root cause:** (a) sample BEOs in the seed have multiple sections (Reception
++ Plated Dinner) that each create a Shift; and (b) `syncBeoShifts` would
+additionally synthesise a fallback "Main Service" section + Shift on top of
+already-seeded Shifts.
+**Fix:** (a) the board's `byDay` memo now keeps exactly one Shift per
+`(day, beoId)` — the earliest-starting one — and (b) `syncBeoShifts` skips
+synthesis when the BEO already has Shifts in the target Schedule. See
+`board.tsx` and `src/lib/beo-sync.ts`.
+
+### ✅ v0.5.1 (Phase 15) — BEO# font on board was too loud
+**Symptom:** the `#NNNN` badge dominated every shift card at `text-2xl`.
+**Fix:** dropped to `text-base` while keeping bold + cardinal display type.
+
+### ✅ v0.5.1 (Phase 15) — Auto-scheduler had nothing to choose from
+**Symptom:** every server had the same blanket 06:00–23:59/all-days
+availability, so seniority and fairness barely mattered.
+**Fix:** seed now writes 6 rotating availability patterns across the roster
+(morning / afternoon / weekend / split / full / evenings).
+
 ### ✅ Phase 12 — Run AI Schedule / Fill Unassigned silently filled nothing
 **Symptom:** clicking either button returned HTTP 200 but always produced
 `{filled: 0, unfilled: N}`; no shift cards ever populated. No console error.

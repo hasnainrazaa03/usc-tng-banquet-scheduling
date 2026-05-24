@@ -101,11 +101,53 @@ export default function ScheduleBoard({ data }: { data: BoardData }) {
     return Array.from(set).sort();
   }, [shifts]);
 
+  /**
+   * Group shifts by operational-week day, and DEDUPE so each BEO renders
+   * exactly one card per day. When a BEO has multiple sections (e.g.
+   * Reception + Plated Dinner) or stale shifts from prior `syncBeoShifts`
+   * runs, we keep the earliest-starting shift as the representative card.
+   * Shifts without a BEO (rare in current data) are always kept.
+   */
   const byDay = useMemo(() => {
     const m: Record<string, Shift[]> = {
       SUN: [], MON: [], TUE: [], WED: [], THU: [], FRI: [], SAT: [],
     };
-    for (const s of shifts) m[dayKey(s.date)]?.push(s);
+    // First pass: bucket per-day, picking one Shift per BEO (earliest start).
+    const perDayByBeo: Record<string, Map<string, Shift>> = {
+      SUN: new Map(), MON: new Map(), TUE: new Map(), WED: new Map(),
+      THU: new Map(), FRI: new Map(), SAT: new Map(),
+    };
+    const perDayLooseShifts: Record<string, Shift[]> = {
+      SUN: [], MON: [], TUE: [], WED: [], THU: [], FRI: [], SAT: [],
+    };
+    for (const s of shifts) {
+      const dk = dayKey(s.date);
+      if (!(dk in perDayByBeo)) continue;
+      const beoId = s.event?.beo?.id ?? null;
+      if (!beoId) {
+        perDayLooseShifts[dk].push(s);
+        continue;
+      }
+      const existing = perDayByBeo[dk].get(beoId);
+      if (!existing) {
+        perDayByBeo[dk].set(beoId, s);
+      } else {
+        const a = new Date(s.startsAt).getTime();
+        const b = new Date(existing.startsAt).getTime();
+        if (a < b) perDayByBeo[dk].set(beoId, s);
+      }
+    }
+    for (const dk of Object.keys(m) as (keyof typeof m)[]) {
+      const combined = [
+        ...Array.from(perDayByBeo[dk].values()),
+        ...perDayLooseShifts[dk],
+      ];
+      combined.sort(
+        (a, b) =>
+          new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+      );
+      m[dk] = combined;
+    }
     return m;
   }, [shifts]);
 

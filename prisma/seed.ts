@@ -155,7 +155,22 @@ async function main() {
   const today = new Date();
   const weekStart = startOfOperationalWeek(today);
 
-  console.log("→ Importing master data (venue groups, locations, rooms, event spaces)…");
+  // Phase 15 \u2014 Step 0: keep the DB clean for AI-scheduling testing. Wipe
+  // every prior ShiftAssignment and unset every BEO.managerId so a re-seed
+  // always produces an empty roster the auto-scheduler / click-to-add UI
+  // can fill from scratch. Schedules / Shifts / requirements are preserved
+  // so existing operational weeks stay navigable.
+  console.log("\u2192 Phase 15 cleanup: removing stale assignments + BEO manager pre-picks\u2026");
+  const deletedAssignments = await prisma.shiftAssignment.deleteMany({});
+  const clearedManagers = await prisma.bEO.updateMany({
+    where: { managerId: { not: null } },
+    data: { managerId: null },
+  });
+  console.log(
+    `  \u2713 Cleared ${deletedAssignments.count} ShiftAssignment rows; unset manager on ${clearedManagers.count} BEOs`,
+  );
+
+  console.log("\u2192 Importing master data (venue groups, locations, rooms, event spaces)\u2026");
   const raw = loadMasterData();
   const importResult = await importMasterData(raw);
   if (!importResult.ok) {
@@ -380,39 +395,97 @@ async function main() {
   }
   console.log(`  ✓ ${createdServers.length} servers (${FULL_TIME.length} FT, ${PART_TIME.length} PT)`);
 
-  // 4a) Default Availability + ServerQualification rows so the scheduling
-  // engine actually fills shifts. Without these the engine rejects every
-  // candidate with "Outside stated availability" / "Missing qualification".
-  // Pattern: every active banquet employee is available all 7 days, broad
-  // window (06:00–23:59), and holds the RBS cert (required for CAP/BAR).
-  console.log("→ Seeding default availability + qualifications for roster…");
+  // 4a) Realistic Availability matrix + ServerQualification rows.
+  //
+  // Phase 15 — replaces the prior "every server available 06:00–23:59 on all
+  // 7 days" stub. We now seed varied windows per server so the auto-scheduler
+  // has to actually pick from a constrained pool. Patterns are deterministic
+  // (mod-rotated by roster index) so re-running the seed is reproducible:
+  //
+  //   pattern 0 — morning/lunch crew         Mon-Fri 06:00–15:00
+  //   pattern 1 — afternoon/evening crew     Tue-Sat 14:00–23:30
+  //   pattern 2 — weekend warriors           Thu-Sun (all-day)
+  //   pattern 3 — split availability         Mon/Wed/Fri 09:00–14:00,
+  //                                          Sat-Sun 16:00–23:30
+  //   pattern 4 — full open                  All 7 days 06:00–23:30
+  //   pattern 5 — evenings only              Wed-Sun 17:00–23:30
+  //
+  // The scheduling engine requires the shift window to fall ENTIRELY inside
+  // an availability window for a candidate to be considered, so giving every
+  // server a different mix is what lets fairness/seniority actually matter.
+  console.log("→ Seeding realistic availability matrix + qualifications…");
   const rbs = await prisma.qualification.findUnique({ where: { code: "RBS" } });
   const foodHandler = await prisma.qualification.findUnique({ where: { code: "FOOD_HANDLER" } });
-  const allDays: DayOfWeek[] = [
-    DayOfWeek.SUN,
-    DayOfWeek.MON,
-    DayOfWeek.TUE,
-    DayOfWeek.WED,
-    DayOfWeek.THU,
-    DayOfWeek.FRI,
-    DayOfWeek.SAT,
+
+  type AvailWindow = { dow: DayOfWeek; start: string; end: string };
+  const PATTERNS: AvailWindow[][] = [
+    // 0 — morning / lunch crew (Mon–Fri)
+    [DayOfWeek.MON, DayOfWeek.TUE, DayOfWeek.WED, DayOfWeek.THU, DayOfWeek.FRI].map(
+      (dow) => ({ dow, start: "06:00", end: "15:00" }),
+    ),
+    // 1 — afternoon / evening crew (Tue–Sat)
+    [DayOfWeek.TUE, DayOfWeek.WED, DayOfWeek.THU, DayOfWeek.FRI, DayOfWeek.SAT].map(
+      (dow) => ({ dow, start: "14:00", end: "23:30" }),
+    ),
+    // 2 — weekend warriors (Thu–Sun, full days)
+    [DayOfWeek.THU, DayOfWeek.FRI, DayOfWeek.SAT, DayOfWeek.SUN].map((dow) => ({
+      dow,
+      start: "08:00",
+      end: "23:30",
+    })),
+    // 3 — split availability
+    [
+      { dow: DayOfWeek.MON, start: "09:00", end: "14:00" },
+      { dow: DayOfWeek.WED, start: "09:00", end: "14:00" },
+      { dow: DayOfWeek.FRI, start: "09:00", end: "14:00" },
+      { dow: DayOfWeek.SAT, start: "16:00", end: "23:30" },
+      { dow: DayOfWeek.SUN, start: "16:00", end: "23:30" },
+    ],
+    // 4 — full open (“whatever you need”)
+    [
+      DayOfWeek.SUN,
+      DayOfWeek.MON,
+      DayOfWeek.TUE,
+      DayOfWeek.WED,
+      DayOfWeek.THU,
+      DayOfWeek.FRI,
+      DayOfWeek.SAT,
+    ].map((dow) => ({ dow, start: "06:00", end: "23:30" })),
+    // 5 — evenings only (Wed–Sun)
+    [DayOfWeek.WED, DayOfWeek.THU, DayOfWeek.FRI, DayOfWeek.SAT, DayOfWeek.SUN].map(
+      (dow) => ({ dow, start: "17:00", end: "23:30" }),
+    ),
   ];
+  const PATTERN_LABELS = [
+    "Mon–Fri mornings (06:00–15:00)",
+    "Tue–Sat afternoons (14:00–23:30)",
+    "Thu–Sun weekends (08:00–23:30)",
+    "Split: MWF lunch + Sat–Sun evenings",
+    "Full open (all days, 06:00–23:30)",
+    "Wed–Sun evenings (17:00–23:30)",
+  ];
+
+  // Wipe any prior availability rows so the matrix is a clean reseed.
+  await prisma.availability.deleteMany({
+    where: { serverId: { in: createdServers.map((r) => r.id) } },
+  });
+
   let availCount = 0;
   let qualCount = 0;
-  for (const r of createdServers) {
-    for (const dow of allDays) {
-      const existing = await prisma.availability.findFirst({
-        where: { serverId: r.id, dayOfWeek: dow },
-      });
-      if (existing) continue;
+  for (let idx = 0; idx < createdServers.length; idx++) {
+    const r = createdServers[idx];
+    const patternIdx = idx % PATTERNS.length;
+    const pattern = PATTERNS[patternIdx];
+    const label = PATTERN_LABELS[patternIdx];
+    for (const w of pattern) {
       await prisma.availability.create({
         data: {
           serverId: r.id,
-          dayOfWeek: dow,
-          startTime: "06:00",
-          endTime: "23:59",
+          dayOfWeek: w.dow,
+          startTime: w.start,
+          endTime: w.end,
           preference: 0,
-          notes: "Default seeded availability (full-day window)",
+          notes: `Seeded pattern ${patternIdx}: ${label}`,
         },
       });
       availCount++;
@@ -426,7 +499,7 @@ async function main() {
       qualCount++;
     }
   }
-  console.log(`  ✓ ${availCount} availability rows + ${qualCount} qualification links`);
+  console.log(`  ✓ ${availCount} availability rows (6 patterns) + ${qualCount} qualification links`);
 
   // 5) Seniority records — derived from hireDate, ranked across the whole roster.
   console.log("→ Computing seniority records…");
@@ -580,18 +653,9 @@ async function main() {
         },
       });
 
-      // Assign the most senior captain (Mario Estrada) to the dinner shift.
-      if (capRole && rosterByTenure[0]) {
-        await prisma.shiftAssignment.create({
-          data: {
-            shiftId: dinnerShift.id,
-            serverId: rosterByTenure[0].id,
-            roleCode: "CAP",
-            assignedBy: adminUser.id,
-            reason: "Most senior lead captain",
-          },
-        });
-      }
+      // Phase 15 — seed leaves every BEO unassigned so AI scheduling / Fill
+      // Unassigned has real work to do on a fresh DB. No pre-assigned
+      // captain or manager here.
     }
   } else {
     console.warn("  ! UPC-MAIN/TNG room not found — skipping sample BEO");
@@ -1020,7 +1084,12 @@ async function seedExtraBeos(weekStart: Date, adminUserId: string) {
       console.warn(`  ! Location ${b.locationCode} not found — skipping BEO ${bookingId}`);
       continue;
     }
-    const manager = b.cateringManagerEmail ? await pickManagerByEmail(b.cateringManagerEmail) : null;
+    // Phase 15: validate the catering-manager email maps to a real User so
+    // bad master data fails loudly, but DO NOT pre-assign \u2014 every BEO is
+    // left unassigned for AI-scheduling / click-to-add testing.
+    if (b.cateringManagerEmail) {
+      await pickManagerByEmail(b.cateringManagerEmail);
+    }
     const eventDate = addDays(weekStart, b.daysFromWeekStart);
     // Deterministic 5-digit BEO # (10100..10999 range) so re-seed is stable.
     const beoNumber = String(10100 + i);
@@ -1038,7 +1107,7 @@ async function seedExtraBeos(weekStart: Date, adminUserId: string) {
         cateringManager: b.contactName,
         locationId: venue.location.id,
         roomId: venue.room?.id,
-        managerId: manager?.id,
+        managerId: null,
         eventDate,
         startTime: atTime(eventDate, b.startHHMM),
         endTime: atTime(eventDate, b.endHHMM),

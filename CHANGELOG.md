@@ -12,6 +12,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] — Phase 15 (BEO# polish, dedupe, realistic availability, AI audit)
+
+### Changed
+- **BEO number font on the schedule board is now `text-base` (1rem) bold
+  cardinal display type** instead of the much louder `text-2xl`. Still
+  prominent, no longer dominates the card header.
+- **Schedule board deduplicates BEOs per day.** Previously a BEO with
+  multiple sections (e.g. Reception + Plated Dinner) or stale shifts from
+  prior `syncBeoShifts` runs rendered as multiple cards on the same day.
+  `byDay` now keeps exactly one Shift per (day, beoId) — the earliest-
+  starting one wins. Shifts without a BEO are kept as-is.
+- **`syncBeoShifts` no longer synthesises a fallback "Main Service"
+  section when the BEO already has Shifts in the target Schedule.** This
+  was the second source of duplicate cards on the seeded sample BEO.
+- **Realistic seeded availability matrix.** `prisma/seed.ts` replaces the
+  prior "every server available 06:00–23:59 all 7 days" stub with 6
+  rotating patterns (morning crew / afternoon crew / weekend warriors /
+  split / full open / evenings only). 165 availability rows total. This
+  makes the auto-scheduler's availability filter actually meaningful
+  during testing.
+- **Seed leaves every BEO unassigned.** No more pre-seeded ShiftAssignment
+  rows, no more pre-seeded `BEO.managerId`. A new "Phase 15 cleanup" step
+  at the top of `main()` also wipes any stale ShiftAssignments and clears
+  any BEO.managerId on an existing DB the first time the seed is re-run,
+  so AI scheduling / click-to-add has a clean board to work on.
+
+### Documentation
+- Audited and documented the rules-based scheduling engine
+  (`src/lib/scheduling-engine.ts`) — hard filters, scoring, fairness,
+  conflicts. See README "AI scheduling — what's actually happening".
+- Documented BEO import parsing — PDF via `pdfjs-dist` text extraction,
+  PNG via `tesseract.js` OCR, both client-side. Optional LLM-assisted
+  field extraction lights up automatically when `OPENAI_API_KEY` is set;
+  otherwise a deterministic regex/master-data fallback parses the text.
+- Documented where an LLM can live in the stack (extraction now;
+  scoring/explanation later) and the deterministic-first guardrails.
+
+### Versioning
+- `0.5.0 → 0.5.1` — bumped in `package.json`.
+
+---
+
 ## [0.5.0] — Phase 14 (BEO numbers, click-to-add, no DnD)
 
 ### Added

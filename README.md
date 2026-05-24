@@ -169,6 +169,150 @@ After running `npm run db:seed` you can verify the engine end-to-end:
 
 ---
 
+## AI scheduling — what's actually happening (v0.5.1)
+
+The system today uses a **deterministic, rules-based scheduling engine**
+([src/lib/scheduling-engine.ts](src/lib/scheduling-engine.ts)). There is
+no LLM in the live scheduling path. The word "AI" in the UI refers to
+this engine's explainable scoring + rejection-reason output, not to a
+generative model. Below is the full audit of what it does.
+
+### Required inputs (preconditions)
+
+For `POST /api/schedule/run` to fill anything, the DB must contain:
+
+1. A `Schedule` row for the operational week being filled (auto-created
+   from `weekStart` if needed).
+2. `Shift` rows on that schedule, each with `ShiftRequirement` rows
+   (`{ roleId, count }`). On a fresh week, these come from `syncBeoShifts`
+   pulling every BEO whose `eventDate` lands in the Thu→Wed window.
+3. Active `Server` rows (`status = ACTIVE`).
+4. `Availability` rows per server (one per day-of-week with a `startTime`
+   / `endTime` window). **Without availability rows the engine rejects
+   every candidate** with "Outside stated availability". The seed now
+   ships 6 realistic rotating patterns so this is non-empty by default.
+5. `ServerQualification` rows linking each server to the certifications
+   their role requires (e.g. `RBS` for CAP/BAR via `Role.qualificationsRequired`).
+6. Optional: `SeniorityRecord` rows (used for scoring; absent = 0 score).
+7. Optional: `TimeOffRequest` rows with `status = APPROVED` will block
+   candidates whose window overlaps.
+
+### Hard filters applied to every candidate (in order)
+
+1. Active server.
+2. Holds **every** qualification required by the role.
+3. Shift window falls **entirely inside** one of the server's
+   availability windows for the shift's day-of-week.
+4. No `APPROVED` time-off overlap.
+5. No double-booking — an active (non-called-out) assignment on a shift
+   whose time overlaps this one.
+6. Min-rest — ≥10 h between end-of-other and start-of-this (and vice
+   versa).
+7. Projected weekly hours ≤ 40 (soft cap, configurable).
+8. ≤ 6 distinct calendar days assigned in this schedule.
+
+Every rejected candidate is recorded with a human-readable reason on the
+`EngineDecision` so the audit trail explains *why* someone was skipped.
+
+### Scoring (after hard filters pass)
+
+```
+score = (seniorityScore × 100) − (currentWeeklyHours / 40 × 10)
+     + 3   if shift.locationCode ∈ server.preferredLocations
+     + 5   if role = CAP and classification = LEAD_BANQUET_CAPTAIN
+```
+
+Higher score wins. Stable tiebreaker: `lastName`, then `firstName`.
+
+The result: **seniority is the primary signal**, fairness (weekly hours
+so far) is a small balancing term, and a few hand-tuned bonuses nudge
+toward preferred venues and lead captains. Every assignment persists its
+ranked reason bits as `ShiftAssignment.reason` (e.g.
+`Auto: seniority 28.7y; prefers UPC-MAIN; lead captain`).
+
+### Conflict handling
+
+- Exact double-booking on the same role-slot is blocked at the DB layer
+  by `@@unique([shiftId, serverId])` (returns 409 from
+  `/api/schedule/assign`).
+- Cross-venue concurrent assignments are **allowed** (Phase 14 policy) —
+  the board shows an amber "Stacked" badge but the API does not 409.
+- Mid-week call-outs use the `/api/schedule/callout` + `/replace` pair
+  which preserves the original assignment for audit and chooses a
+  replacement via the same engine.
+
+### Could an LLM be plugged in?
+
+Yes — and there's already one foothold:
+
+- **Today (extraction):** [src/lib/ai.ts](src/lib/ai.ts) calls the OpenAI
+  Responses API when `OPENAI_API_KEY` is set in the env, to extract
+  structured BEO fields from raw uploaded text. With no API key it falls
+  back to a deterministic regex + master-data pattern matcher. This is
+  best-effort: every extracted field is shown in the form before save,
+  so a bad extraction can be corrected by a human.
+- **Future (suggestion, not decision):** an LLM could rank or annotate
+  candidates the engine returns ("Maria works well with this catering
+  manager", "Alejandro requested fewer Saturdays"), but the **hard
+  filters and persistence must stay deterministic**. The engine's
+  `EngineDecision` shape is already the right contract — an LLM should
+  only ever influence scoring/explanation, never bypass availability,
+  qualifications, time-off, rest, or hour caps.
+
+This separation is intentional: scheduling decisions must remain
+**auditable** (we already write an `AuditLog` row for every assignment)
+and **reproducible** (same inputs → same outputs).
+
+---
+
+## BEO import — PDF / PNG parsing
+
+The "New BEO" page ([src/app/(app)/beos/new/page.tsx](src/app/(app)/beos/new/page.tsx))
+offers four tabs: **Form / Text / PDF / PNG**. The Form tab is manual
+entry; the other three accept user input that's parsed to text and then
+run through the same extractor.
+
+| Input | Parser | Where it runs | Library |
+| --- | --- | --- | --- |
+| Pasted text | direct | client | — |
+| PDF upload | text extraction (no OCR) | client (browser) | `pdfjs-dist` |
+| PNG / JPG upload | OCR | client (browser) | `tesseract.js` (English) |
+
+Both file parsers live in
+[src/lib/import/parse-files-client.ts](src/lib/import/parse-files-client.ts).
+They run **entirely in the browser** to keep the serverless bundle small
+and avoid streaming ~30 MB of OCR worker code to Vercel functions. The
+PDF parser groups items by Y-coordinate so multi-column BEO templates
+come back in reading order; the PNG parser loads the Tesseract WASM core
++ English language data on first use (~10 MB cached) and reuses the
+worker for subsequent uploads.
+
+After the file is parsed to text, the text is POSTed to
+`/api/beos/extract` which calls `extractBEOFromText` in
+[src/lib/ai.ts](src/lib/ai.ts):
+
+- If `OPENAI_API_KEY` is present, it asks an LLM (OpenAI Responses API)
+  to return a JSON object matching `ExtractedBEO`. The prompt includes
+  the venue / room codes from
+  [data/banquet_master_data.json](data/banquet_master_data.json) so the
+  model can resolve "Town & Gown" → `TNG`.
+- If no key is configured, the same shape is filled by a deterministic
+  regex + master-data lookup. This always works (no network) but is
+  best at picking up obvious fields (date, time, guest count, venue
+  name, post-as line).
+
+Limitations to be aware of:
+
+- Scanned PDFs (image-only, no embedded text) fall through `pdfjs-dist`
+  with empty output. Save the page as PNG and use the PNG tab to OCR
+  instead.
+- Tesseract's English model handles printed text well, handwritten BEO
+  amendments are unreliable — confirm extracted fields before saving.
+- The extractor returns *suggestions*. Every field is editable in the
+  form before `POST /api/beos` persists it.
+
+---
+
 ## Project structure
 
 ```

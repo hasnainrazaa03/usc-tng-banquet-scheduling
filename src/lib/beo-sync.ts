@@ -88,6 +88,19 @@ export async function syncBeoShifts(beoId: string, createdBy?: string) {
   let created = 0;
   let skipped = 0;
 
+  // If this BEO already has at least one Shift in the target schedule
+  // (typically because the seed or a prior sync materialised it directly),
+  // do NOT synthesize a default "Main Service" section on top — that path
+  // is what produced duplicate cards on the board for the same BEO/day.
+  if (!beo.sections.length) {
+    const existingForBeo = await prisma.shift.count({
+      where: { scheduleId: schedule.id, eventId: { in: beo.events.map((e) => e.id) } },
+    });
+    if (existingForBeo > 0) {
+      return { scheduleId: schedule.id, eventId: event.id, created: 0, skipped: existingForBeo };
+    }
+  }
+
   // Resolve role ids once per call.
   const sections = beo.sections.length
     ? beo.sections
