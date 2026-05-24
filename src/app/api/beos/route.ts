@@ -4,6 +4,8 @@ import { requireRole } from "@/lib/auth";
 import { deriveStaffingFromGuests } from "@/lib/ai";
 import { syncBeoShifts } from "@/lib/beo-sync";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const beos = await prisma.bEO.findMany({
     orderBy: { eventDate: "asc" },

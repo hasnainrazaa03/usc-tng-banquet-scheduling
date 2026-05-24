@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractBEOFromText, deriveStaffingFromGuests } from "@/lib/ai";
 import { getSession } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 /**
  * AI assist — parse raw BEO text (paste from email / PDF / handwritten notes)
  * into structured fields, and suggest staffing based on guest count.

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 /**
  * PUT /api/beos/:id/manager
  * Body: { managerId: string | null }

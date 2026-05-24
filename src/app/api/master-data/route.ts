@@ -4,6 +4,8 @@ import { requireRole } from "@/lib/auth";
 import { importMasterData } from "@/lib/import";
 import { MasterDataSchema } from "@/lib/master-data/schema";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const latest = await prisma.masterDataVersion.findFirst({ orderBy: { versionNum: "desc" } });
   return NextResponse.json(latest ?? null);

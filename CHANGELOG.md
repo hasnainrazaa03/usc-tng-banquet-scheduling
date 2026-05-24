@@ -12,6 +12,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Phase 10.2 — Vercel production build no longer crashes on prerender.**
+  Next.js was statically prerendering API route GET handlers (`/api/options`,
+  `/api/master-data`, `/api/availability`, `/api/beos`, ...) at build time and
+  hitting Neon before tables existed, producing `The table public.Location does
+  not exist`. Every `src/app/api/**/route.ts` now exports
+  `export const dynamic = "force-dynamic"` so the routes are server-rendered
+  on demand instead of at build time. This also makes the build robust against
+  a temporarily empty database.
+- **Phase 10.2 — Login appeared to succeed but never redirected.**
+  `src/lib/auth.ts` and `src/middleware.ts` captured `AUTH_SECRET` at module
+  scope. When operators rotated the secret in `.env` / Vercel env vars, the
+  dev server hot-reloaded the env but the cached module constants kept the
+  stale value → `createSession` signed JWTs with the new secret while
+  `getSession`/middleware verified with the old one → every request bounced
+  back to `/login`. Both modules now read `process.env.AUTH_SECRET` lazily
+  via `getSecret()` on each call.
+
 ### Security
 - **Phase 10.1 — Removed leaked credentials from tracked docs.** The
   Phase 10 commit (`c93c8f0`) included the live Neon connection string

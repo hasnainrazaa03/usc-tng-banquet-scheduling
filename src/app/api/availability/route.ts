@@ -13,6 +13,8 @@
  * All writes require ADMIN or MANAGER. Reads are open to any signed-in user.
  */
 
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession, requireRole } from "@/lib/auth";

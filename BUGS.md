@@ -27,6 +27,28 @@ confirms the assignment lands on the right shift.
 
 ## Resolved (recent)
 
+### ✅ Phase 10.2 — Vercel build crashed during static prerender
+**Symptom:** `vercel build` failed at `Generating static pages` with
+`prisma.location.findMany() ... The table public.Location does not exist`.
+**Root cause:** Next.js statically prerendered API route GET handlers at
+build time; they hit Neon before `prisma db push` had been run against the
+production database.
+**Fix:** Added `export const dynamic = "force-dynamic"` to every file in
+`src/app/api/**/route.ts`. Routes are now `ƒ (Dynamic)` in the build output
+and never execute during prerender.
+
+### ✅ Phase 10.2 — Login succeeded but UI stayed on `/login`
+**Symptom:** `POST /api/auth/login` returned 200 and set the cookie, but
+the browser never reached `/dashboard` — `router.push` was silently bounced
+back by the `(app)` layout's `getSession()` check.
+**Root cause:** `src/lib/auth.ts` and `src/middleware.ts` computed
+`SECRET = TextEncoder().encode(process.env.AUTH_SECRET)` at module scope.
+After rotating `AUTH_SECRET`, the dev server hot-reloaded `.env` but the
+cached module-scoped constant still held the old value, so JWTs signed by
+`createSession` could not be verified by `getSession`.
+**Fix:** Replaced the constant with a `getSecret()` function called on every
+sign/verify so env rotations take effect without a process restart.
+
 ### ✅ Phase 10.1 — Login showed "Invalid credentials" for all users
 **Symptom:** Every login attempt — including the seeded `admin@tng.usc.edu`
 / `password123` — returned `401 Invalid credentials`.

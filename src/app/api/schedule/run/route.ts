@@ -5,6 +5,8 @@ import { clearUnlockedAssignments, runAutoSchedule } from "@/lib/scheduling-engi
 import { ensureWeeklySchedule, syncBeoShifts } from "@/lib/beo-sync";
 import { startOfOperationalWeek, endOfOperationalWeek } from "@/lib/week-config";
 
+export const dynamic = "force-dynamic";
+
 /**
  * POST /api/schedule/run
  * body: { weekStart?: "YYYY-MM-DD", name?: string, clearFirst?: boolean, scheduleId?: string }

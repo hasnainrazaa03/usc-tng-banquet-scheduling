@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET ?? "dev-secret-change-me");
+// Read AUTH_SECRET on every request so rotations take effect immediately.
+// See src/lib/auth.ts for the same pattern + rationale.
+function getSecret() {
+  return new TextEncoder().encode(process.env.AUTH_SECRET ?? "dev-secret-change-me");
+}
 
 const PUBLIC = ["/login", "/api/auth/login"];
 
@@ -19,7 +23,7 @@ export async function middleware(req: NextRequest) {
     const url = req.nextUrl.clone(); url.pathname = "/login"; return NextResponse.redirect(url);
   }
   try {
-    await jwtVerify(token, SECRET);
+    await jwtVerify(token, getSecret());
     return NextResponse.next();
   } catch {
     if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Invalid session" }, { status: 401 });

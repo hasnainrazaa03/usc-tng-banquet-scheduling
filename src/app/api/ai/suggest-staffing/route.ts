@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { deriveStaffingFromGuests } from "@/lib/ai";
 import { getSession } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 /**
  * AI assist — given guest count + event metadata, return suggested staffing
  * needs by role. Uses common patterns from banquet_master_data.json first,

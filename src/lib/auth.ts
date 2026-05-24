@@ -4,7 +4,14 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./db";
 import type { UserRole } from "@prisma/client";
 
-const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET ?? "dev-secret-change-me");
+// Read AUTH_SECRET lazily on every call so dev-server env reloads (and Vercel
+// secret rotations between deploys) take effect without a process restart. If
+// we captured this at module scope, a JWT signed with the new secret would be
+// verified against a stale module-cached secret → user appears logged-in but
+// every redirect bounces them back to /login.
+function getSecret() {
+  return new TextEncoder().encode(process.env.AUTH_SECRET ?? "dev-secret-change-me");
+}
 const COOKIE = "tng_session";
 
 export type SessionUser = {
@@ -26,7 +33,7 @@ export async function createSession(user: SessionUser) {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(SECRET);
+    .sign(getSecret());
   cookies().set(COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
@@ -44,7 +51,7 @@ export async function getSession(): Promise<SessionUser | null> {
   const token = cookies().get(COOKIE)?.value;
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, SECRET);
+    const { payload } = await jwtVerify(token, getSecret());
     const session = payload as unknown as SessionUser;
     // Defend against stale cookies pointing at a userId that was wiped by a
     // re-seed: verify the user still exists and is active before trusting

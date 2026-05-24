@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 /**
  * AI assist — return a plain-English explanation of why a specific server
  * was (or could be) assigned to a shift. Reads the stored `reason` string
